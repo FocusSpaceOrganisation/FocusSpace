@@ -1,6 +1,26 @@
 @model IEnumerable<FocusSpace.Application.DTOs.TaskDto>
+@using FocusSpace.Domain.Enums
 @{
     ViewData["Title"] = "My Tasks";
+}
+
+@* ── Priority badge helper ────────────────────────────────────────── *@
+@functions {
+    static string PriorityBadgeClass(TaskPriority p) => p switch
+    {
+        TaskPriority.High   => "badge bg-danger",
+        TaskPriority.Medium => "badge bg-warning text-dark",
+        TaskPriority.Low    => "badge bg-secondary",
+        _                   => "badge bg-secondary"
+    };
+
+    static string PriorityIcon(TaskPriority p) => p switch
+    {
+        TaskPriority.High   => "🔴",
+        TaskPriority.Medium => "🟡",
+        TaskPriority.Low    => "⚪",
+        _                   => ""
+    };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -24,23 +44,29 @@ else
                     <tr>
                         <th>#</th>
                         <th>Title</th>
+                        <th>Priority</th>
                         <th>Description</th>
                         <th>Created</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var task in Model)
+                    @foreach (var task in Model.OrderByDescending(t => t.Priority))
                     {
                         <tr>
                             <td class="text-muted">@task.Id</td>
                             <td><strong>@task.Title</strong></td>
+                            <td>
+                                <span class="@PriorityBadgeClass(task.Priority)">
+                                    @PriorityIcon(task.Priority) @task.Priority
+                                </span>
+                            </td>
                             <td class="text-muted">@(task.Description ?? "—")</td>
                             <td class="text-muted">@task.CreatedAt.ToString("dd MMM yyyy")</td>
                             <td class="text-end">
                                 <a asp-action="Details" asp-route-id="@task.Id" class="btn btn-sm btn-outline-secondary me-1">View</a>
-                                <a asp-action="Edit" asp-route-id="@task.Id" class="btn btn-sm btn-outline-warning me-1">Edit</a>
-                                <a asp-action="Delete" asp-route-id="@task.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                                <a asp-action="Edit"    asp-route-id="@task.Id" class="btn btn-sm btn-outline-warning me-1">Edit</a>
+                                <a asp-action="Delete"  asp-route-id="@task.Id" class="btn btn-sm btn-outline-danger">Delete</a>
                             </td>
                         </tr>
                     }

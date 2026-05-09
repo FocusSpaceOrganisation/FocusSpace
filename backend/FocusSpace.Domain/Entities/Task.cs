@@ -1,6 +1,7 @@
+using FocusSpace.Domain.Enums;
+
 namespace FocusSpace.Domain.Entities
 {
-
     public class Task
     {
         public int Id { get; set; }
@@ -9,6 +10,9 @@ namespace FocusSpace.Domain.Entities
         public string? Description { get; set; }
         public int? PlanetId { get; set; }
         public int? PlannedDuration { get; set; }
+
+        /// <summary>Task priority — stored as string in the database.</summary>
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

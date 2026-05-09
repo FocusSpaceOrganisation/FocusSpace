@@ -3,6 +3,7 @@ using System;
 using FocusSpace.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FocusSpace.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501191147_AddTaskPriority")]
+    partial class AddTaskPriority
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -213,11 +216,6 @@ namespace FocusSpace.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<int?>("PlanetId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("PlannedDuration")
-                        .HasColumnType("integer");
                     b.Property<string>("Priority")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -236,8 +234,6 @@ namespace FocusSpace.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PlanetId");
 
                     b.HasIndex("UserId");
 
@@ -457,17 +453,11 @@ namespace FocusSpace.Infrastructure.Migrations
 
             modelBuilder.Entity("FocusSpace.Domain.Entities.Task", b =>
                 {
-                    b.HasOne("FocusSpace.Domain.Entities.Planet", "Planet")
-                        .WithMany()
-                        .HasForeignKey("PlanetId");
-
                     b.HasOne("FocusSpace.Domain.Entities.User", "User")
                         .WithMany("Tasks")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Planet");
 
                     b.Navigation("User");
                 });

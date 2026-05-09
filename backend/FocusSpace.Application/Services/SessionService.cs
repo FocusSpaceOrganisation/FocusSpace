@@ -85,7 +85,6 @@ public class SessionService : ISessionService
             CreatedAt = s.CreatedAt
         });
     }
-
     public async Task<SessionDto?> GetSessionByIdAsync(int sessionId)
     {
         var session = await _sessionRepository.GetByIdAsync(sessionId);
