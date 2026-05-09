@@ -160,5 +160,55 @@ namespace FocusSpace.Api.Controllers
             var tasks = await _taskService.GetTasksByUserIdAsync(await GetCurrentUserIdAsync());
             return Json(tasks);
         }
+
+        // POST /Tasks/CreateJson - AJAX endpoint for creating tasks from the home page
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateJson([FromBody] CreateTaskDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { message = "Invalid task data", errors = ModelState.Values.SelectMany(v => v.Errors) });
+
+            try
+            {
+                dto.UserId = await GetCurrentUserIdAsync();
+                _logger.LogInformation("User {UserId} creating task via AJAX: '{Title}'", dto.UserId, dto.Title);
+
+                var task = await _taskService.CreateTaskAsync(dto);
+                return Ok(new { id = task.Id, message = "Task created successfully" });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError("Error creating task: {Message}", ex.Message);
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Unexpected error creating task: {Message}", ex.Message);
+                return StatusCode(500, new { message = "An unexpected error occurred" });
+            }
+        }
+
+        // POST /Tasks/DeleteJson - AJAX endpoint for deleting tasks from the home page
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteJson([FromBody] DeleteTaskRequest request)
+        {
+            if (request is null || request.Id <= 0)
+                return BadRequest(new { message = "Invalid task id." });
+
+            var userId = await GetCurrentUserIdAsync();
+            var task = await _taskService.GetTaskByIdAsync(request.Id);
+            if (task is null || task.UserId != userId)
+                return NotFound(new { message = "Task not found." });
+
+            await _taskService.DeleteTaskAsync(request.Id);
+            return Ok(new { message = "Task deleted successfully." });
+        }
+
+        public sealed class DeleteTaskRequest
+        {
+            public int Id { get; set; }
+        }
     }
 }

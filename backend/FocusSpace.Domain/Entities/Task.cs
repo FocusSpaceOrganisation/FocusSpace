@@ -8,14 +8,16 @@ namespace FocusSpace.Domain.Entities
         public int UserId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public int? PlanetId { get; set; }
+        public int? PlannedDuration { get; set; }
 
         /// <summary>Task priority — stored as string in the database.</summary>
         public TaskPriority Priority { get; set; } = TaskPriority.Medium;
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public User User { get; set; } = null!;
+        public Planet? Planet { get; set; }
         public ICollection<Session> Sessions { get; set; } = new List<Session>();
     }
 }

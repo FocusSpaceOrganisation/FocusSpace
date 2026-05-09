@@ -3,67 +3,204 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
+<div class="timer-shell">
+    <div class="timer-card" id="setup">
+        <div class="timer-header">
+            <h4 class="timer-title">Focus Timer</h4>
+            <p class="timer-subtitle">Pick a duration and press start.</p>
+        </div>
 
-            <div class="card p-4 text-center" id="setup">
-                <h4 class="mb-4" style="color:#a78bfa;">🚀 Focus Timer</h4>
+        <label class="timer-label" for="minutesInput">Minutes</label>
+        <input type="number" id="minutesInput" class="timer-input" min="1" max="180" value="25" />
+        <div id="inputError" class="timer-error" style="display:none;"></div>
 
-                <label class="form-label" style="color:#e0e0f0;">How many minutes?</label>
-                <input type="number" id="minutesInput"
-                       class="form-control mb-1"
-                       style="background:#12122a; color:#e0e0f0; border-color:#3d3d60;"
-                       min="1" max="180" value="25" />
-                <div id="inputError" class="text-danger small mb-2" style="display:none;"></div>
+        <button class="timer-primary" onclick="startTimer()">Start timer</button>
+        <div id="startError" class="timer-error" style="display:none;"></div>
+    </div>
 
-                <label class="form-label mt-2" style="color:#e0e0f0;">Task (optional)</label>
-                <select id="taskSelect"
-                        class="form-control mb-3"
-                        style="background:#12122a; color:#e0e0f0; border-color:#3d3d60;">
-                    <option value="">— No task —</option>
-                </select>
-
-                <button class="btn btn-primary w-100 mt-2" onclick="startTimer()">
-                    ▶ Start Session
-                </button>
-                <div id="startError" class="text-danger small mt-2" style="display:none;"></div>
+    <div class="timer-card" id="timerDisplay" style="display:none">
+        <div class="timer-header">
+            <h4 class="timer-title">Focusing...</h4>
+            <p id="activeTaskLabel" class="timer-subtitle"></p>
+        </div>
+        <div class="timer-count" id="timeLeft">00:00</div>
+        <div class="timer-actions">
+            <button class="timer-secondary" id="pauseBtn" onclick="togglePause()">Pause</button>
+            <button class="timer-danger" onclick="cancelTimer()">Cancel</button>
+        </div>
+        <div id="cancelConfirm" class="timer-confirm" style="display:none;">
+            <p>Cancel this session?</p>
+            <div class="timer-actions">
+                <button class="timer-danger" onclick="finishTimer(false)">Yes, cancel</button>
+                <button class="timer-secondary" onclick="hideCancelConfirm()">No</button>
             </div>
-
-            <div class="card p-4 text-center" id="timerDisplay" style="display:none">
-                <h4 class="mb-1" style="color:#a0a0c0;">Focusing...</h4>
-                <p id="activeTaskLabel" class="small mb-2" style="color:#7c6aaa;"></p>
-                <div class="display-1 my-3" id="timeLeft"
-                     style="color:#a78bfa; font-weight:700; letter-spacing:4px;">
-                    00:00
-                </div>
-                <div class="d-flex gap-2 justify-content-center mt-3">
-                    <button class="btn btn-warning" id="pauseBtn" onclick="togglePause()">
-                        ⏸ Pause
-                    </button>
-                    <button class="btn btn-danger" onclick="cancelTimer()">
-                        ✕ Cancel
-                    </button>
-                </div>
-                <div id="cancelConfirm" class="mt-3" style="display:none;">
-                    <p style="color:#e0e0f0;">Cancel this session?</p>
-                    <button class="btn btn-danger btn-sm me-2" onclick="finishTimer(false)">Yes, cancel</button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="hideCancelConfirm()">No</button>
-                </div>
-            </div>
-
-            <div class="card p-4 text-center" id="doneMessage" style="display:none">
-                <div style="font-size:3rem">✅</div>
-                <h4 class="mt-3 text-success">Session Complete!</h4>
-                <p style="color:#a0a0c0;">Great work! Time to take a break.</p>
-                <button class="btn btn-primary mt-2" onclick="resetTimer()">
-                    + New Session
-                </button>
-            </div>
-
         </div>
     </div>
+
+    <div class="timer-card" id="planetInfoCard" style="display:none">
+        <div class="planet-card-title">Planet</div>
+        <div class="planet-card-name" id="planetInfoName"></div>
+        <div class="planet-card-type" id="planetInfoType"></div>
+        <div class="planet-card-description" id="planetInfoDescription"></div>
+        <div class="planet-card-distance" id="planetInfoDistance"></div>
+    </div>
+
+    <div class="timer-card" id="doneMessage" style="display:none">
+        <div class="timer-done">✅</div>
+        <h4 class="timer-title">Session Complete!</h4>
+        <p class="timer-subtitle">Great work. Take a short break.</p>
+        <button class="timer-primary" onclick="resetTimer()">New session</button>
+    </div>
 </div>
+
+<style>
+    .timer-shell {
+        width: min(520px, 92vw);
+        margin: 40px auto 60px;
+        display: grid;
+        gap: 18px;
+    }
+
+    .timer-card {
+        background: linear-gradient(160deg, rgba(24, 26, 48, 0.95), rgba(16, 18, 34, 0.95));
+        border: 1px solid rgba(168, 139, 250, 0.25);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        color: #e8e9ff;
+        text-align: center;
+    }
+
+    .timer-header {
+        margin-bottom: 18px;
+    }
+
+    .timer-title {
+        margin: 0 0 6px;
+        font-size: 20px;
+        color: #cdb7ff;
+        letter-spacing: 0.5px;
+    }
+
+    .timer-subtitle {
+        margin: 0;
+        color: #9a9fc2;
+        font-size: 13px;
+    }
+
+    .timer-label {
+        display: block;
+        text-align: left;
+        font-size: 12px;
+        color: #9a9fc2;
+        margin-bottom: 6px;
+    }
+
+    .timer-input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(130, 122, 182, 0.4);
+        background: rgba(12, 14, 26, 0.8);
+        color: #e8e9ff;
+        margin-bottom: 12px;
+        text-align: center;
+        font-size: 16px;
+    }
+
+    .timer-primary,
+    .timer-secondary,
+    .timer-danger {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .timer-primary {
+        background: #7c3aed;
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(124, 58, 237, 0.35);
+    }
+
+    .timer-secondary {
+        background: rgba(31, 33, 54, 0.9);
+        color: #d9dbf5;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .timer-danger {
+        background: rgba(239, 68, 68, 0.9);
+        color: #fff;
+    }
+
+    .timer-actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .timer-count {
+        font-size: 54px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        color: #a78bfa;
+        margin: 16px 0;
+    }
+
+    .timer-error {
+        color: #f87171;
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
+
+    .timer-confirm {
+        margin-top: 14px;
+        color: #c8cbee;
+    }
+
+    .timer-done {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+
+    .planet-card-title {
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 1px;
+        color: #9a9fc2;
+        margin-bottom: 10px;
+    }
+
+    .planet-card-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e8e9ff;
+        margin-bottom: 6px;
+    }
+
+    .planet-card-type {
+        font-size: 12px;
+        color: #a78bfa;
+        margin-bottom: 8px;
+    }
+
+    .planet-card-description {
+        font-size: 13px;
+        color: #c8cbee;
+        line-height: 1.4;
+        margin-bottom: 8px;
+    }
+
+    .planet-card-distance {
+        font-size: 12px;
+        color: #9a9fc2;
+    }
+</style>
 
 @section Scripts {
     <script>
@@ -72,21 +209,138 @@
         let totalSeconds = 0;
         let currentSessionId = null;
         let isPaused = false;
+        const planetInfoCard = document.getElementById('planetInfoCard');
+        const planetInfoName = document.getElementById('planetInfoName');
+        const planetInfoType = document.getElementById('planetInfoType');
+        const planetInfoDescription = document.getElementById('planetInfoDescription');
+        const planetInfoDistance = document.getElementById('planetInfoDistance');
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        function getPlanetInfoFromParams(params) {
+            const name = params.get('planetName');
+            const type = params.get('planetType');
+            const description = params.get('planetDescription');
+            const distance = params.get('planetDistance');
+
+            if (!name && !type && !description && !distance) return null;
+
+            return {
+                name: name ? decodeURIComponent(name) : '',
+                type: type ? decodeURIComponent(type) : '',
+                description: description ? decodeURIComponent(description) : '',
+                distance: distance ? decodeURIComponent(distance) : ''
+            };
+        }
+
+        function storePlanetInfoForSession(sessionId, info) {
+            if (!sessionId || !info) return;
+
+            const payload = {
+                sessionId: String(sessionId),
+                planetInfo: info,
+                storedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('activeSessionPlanet', JSON.stringify(payload));
+        }
+
+        function loadPlanetInfoForSession(sessionId) {
+            if (!sessionId) return null;
+
+            const raw = localStorage.getItem('activeSessionPlanet');
+            if (!raw) return null;
+
             try {
-                const res = await fetch('/Tasks/GetUserTasks');
-                if (!res.ok) return;
-                const tasks = await res.json();
-                const select = document.getElementById('taskSelect');
-                tasks.forEach(t => {
-                    const option = document.createElement('option');
-                    option.value = t.id;
-                    option.textContent = t.title;
-                    select.appendChild(option);
+                const parsed = JSON.parse(raw);
+                if (parsed?.sessionId === String(sessionId)) return parsed.planetInfo;
+            } catch {
+                return null;
+            }
+
+            return null;
+        }
+
+        function clearPlanetInfoForSession(sessionId) {
+            if (!sessionId) return;
+
+            const raw = localStorage.getItem('activeSessionPlanet');
+            if (!raw) return;
+
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.sessionId === String(sessionId)) {
+                    localStorage.removeItem('activeSessionPlanet');
+                }
+            } catch {
+            }
+        }
+
+        function applyPlanetInfo(info) {
+            if (!planetInfoCard) return;
+
+            if (!info || !(info.name || info.type || info.description || info.distance)) {
+                planetInfoCard.style.display = 'none';
+                return;
+            }
+
+            planetInfoName.textContent = info.name || 'Planet';
+            planetInfoType.textContent = info.type ? `Type: ${info.type}` : '';
+            planetInfoDescription.textContent = info.description || '';
+            planetInfoDistance.textContent = info.distance ? `Distance: ${info.distance}` : '';
+            planetInfoCard.style.display = 'block';
+        }
+
+        async function openActiveSession() {
+            const res = await fetch('/Session/GetActiveSession');
+            if (!res.ok) return false;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.hasActive || !data.sessionId) return false;
+
+            const minutes = data.plannedSeconds > 0 ? Math.ceil(data.plannedSeconds / 60) : 25;
+
+            await startTimer({
+                minutes,
+                sessionId: data.sessionId,
+                label: data.label || '',
+                plannedSeconds: data.plannedSeconds,
+                remainingSeconds: data.remainingSeconds
+            });
+
+            return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const sessionIdParam = params.get('sessionId');
+            const minutesParam = parseInt(params.get('minutes') || '', 10);
+            const plannedSecondsParam = parseInt(params.get('plannedSeconds') || '', 10);
+            const remainingSecondsParam = parseInt(params.get('remainingSeconds') || '', 10);
+            const labelParam = params.get('label');
+            const planetInfoFromParams = getPlanetInfoFromParams(params);
+            const autoStart = params.get('autostart') === '1' || !!sessionIdParam;
+
+            if (planetInfoFromParams && sessionIdParam) {
+                storePlanetInfoForSession(sessionIdParam, planetInfoFromParams);
+            }
+
+            if (autoStart) {
+                const plannedSeconds = Number.isFinite(plannedSecondsParam) && plannedSecondsParam > 0
+                    ? plannedSecondsParam
+                    : null;
+                const remainingSeconds = Number.isFinite(remainingSecondsParam) && remainingSecondsParam >= 0
+                    ? remainingSecondsParam
+                    : null;
+                const minutes = Number.isFinite(minutesParam) && minutesParam > 0
+                    ? minutesParam
+                    : (plannedSeconds ? Math.ceil(plannedSeconds / 60) : 25);
+                const label = labelParam ? decodeURIComponent(labelParam) : '';
+                startTimer({
+                    minutes,
+                    sessionId: sessionIdParam,
+                    label,
+                    plannedSeconds,
+                    remainingSeconds
                 });
-            } catch (e) {
-                console.error('Failed to load tasks:', e);
             }
         });
 
@@ -102,50 +356,88 @@
             el.style.display = 'none';
         }
 
-        async function startTimer() {
+        async function startTimer(options = {}) {
             hideError('inputError');
             hideError('startError');
 
-            const minutes = parseInt(document.getElementById('minutesInput').value);
+            const minutesInput = document.getElementById('minutesInput');
+            const plannedSecondsOption = Number.isFinite(options.plannedSeconds) && options.plannedSeconds > 0
+                ? options.plannedSeconds
+                : null;
+            const minutes = Number.isFinite(options.minutes) && options.minutes > 0
+                ? options.minutes
+                : (plannedSecondsOption ? Math.ceil(plannedSecondsOption / 60) : parseInt(minutesInput.value, 10));
             if (!minutes || minutes < 1) {
                 showError('inputError', 'Please enter a valid number of minutes.');
                 return;
             }
+            const plannedSeconds = plannedSecondsOption ?? (minutes * 60);
+            const remainingSeconds = Number.isFinite(options.remainingSeconds) && options.remainingSeconds >= 0
+                ? Math.min(options.remainingSeconds, plannedSeconds)
+                : plannedSeconds;
+            minutesInput.value = Math.ceil(plannedSeconds / 60);
 
-            const taskSelectEl = document.getElementById('taskSelect');
-            const taskId = taskSelectEl.value ? parseInt(taskSelectEl.value) : null;
-            const taskLabel = taskId ? taskSelectEl.options[taskSelectEl.selectedIndex].text : null;
+            const providedSessionId = options.sessionId ? parseInt(options.sessionId, 10) : null;
+            const label = options.label || '';
 
-            // Send plannedMinutes as a plain int — server converts to TimeSpan.
-            // userId is resolved on the server from the authenticated session.
-            const res = await fetch('/Session/Start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    taskId: taskId,
+            if (!providedSessionId) {
+                const payload = {
+                    taskId: null,
                     plannedMinutes: minutes
-                })
-            });
+                };
 
-            if (!res.ok) {
-                const errText = await res.text().catch(() => '');
-                console.error('Start session failed:', res.status, errText);
-                showError('startError', 'Failed to start session. Please try again.');
-                return;
+                let res = await fetch('/Session/Start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 409) {
+                    const replaceExisting = confirm('An active session already exists. Click OK to close it and start a new one, or Cancel to open the active session.');
+                    if (replaceExisting) {
+                        res = await fetch('/Session/Start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...payload,
+                                closeExisting: true
+                            })
+                        });
+                    } else {
+                        const opened = await openActiveSession();
+                        if (!opened) showError('startError', 'Active session not found.');
+                        return;
+                    }
+                }
+
+                if (!res.ok) {
+                    const errText = await res.text().catch(() => '');
+                    console.error('Start session failed:', res.status, errText);
+                    showError('startError', 'Failed to start session. Please try again.');
+                    return;
+                }
+
+                const data = await res.json();
+                currentSessionId = data.sessionId;
+            } else {
+                currentSessionId = providedSessionId;
             }
 
-            const data = await res.json();
-            currentSessionId = data.sessionId;
+            applyPlanetInfo(loadPlanetInfoForSession(currentSessionId));
 
-            totalSeconds = minutes * 60;
-            secondsLeft = totalSeconds;
+            totalSeconds = plannedSeconds;
+            secondsLeft = remainingSeconds;
             isPaused = false;
 
-            document.getElementById('activeTaskLabel').textContent =
-                taskLabel ? `Task: ${taskLabel}` : '';
+            document.getElementById('activeTaskLabel').textContent = label ? label : '';
             document.getElementById('setup').style.display = 'none';
             document.getElementById('timerDisplay').style.display = 'block';
             updateDisplay();
+
+            if (secondsLeft <= 0) {
+                await finishTimer(true);
+                return;
+            }
 
             intervalId = setInterval(() => {
                 secondsLeft--;
@@ -160,8 +452,7 @@
             if (!isPaused) {
                 clearInterval(intervalId);
                 isPaused = true;
-                btn.textContent = '▶ Resume';
-                btn.classList.replace('btn-warning', 'btn-success');
+                btn.textContent = 'Resume';
 
                 await fetch('/Session/Pause', {
                     method: 'POST',
@@ -170,8 +461,7 @@
                 });
             } else {
                 isPaused = false;
-                btn.textContent = '⏸ Pause';
-                btn.classList.replace('btn-success', 'btn-warning');
+                btn.textContent = 'Pause';
 
                 await fetch('/Session/Resume', {
                     method: 'POST',
@@ -213,6 +503,9 @@
                 })
             });
 
+            clearPlanetInfoForSession(currentSessionId);
+            applyPlanetInfo(null);
+
             document.getElementById('timerDisplay').style.display = 'none';
             if (completed) {
                 document.getElementById('doneMessage').style.display = 'block';
@@ -234,6 +527,7 @@
             isPaused = false;
             document.getElementById('doneMessage').style.display = 'none';
             document.getElementById('setup').style.display = 'block';
+            applyPlanetInfo(null);
         }
 
         function formatDuration(seconds) {

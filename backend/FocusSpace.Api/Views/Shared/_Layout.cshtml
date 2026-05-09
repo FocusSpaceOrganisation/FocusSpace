@@ -119,19 +119,6 @@
         .session-modal-body::-webkit-scrollbar-thumb { background: var(--dusty-grape); border-radius: 3px; }
 
         /* existing styles kept below */
-        .planet { transition: transform 0.5s ease, top 0.5s ease, left 0.5s ease; position: fixed; }
-        .planet.active { transform: scale(2); top: 50%; left: 20%; transform: scale(2) translateY(-50%); }
-        .modal-right {
-            position: fixed; top: 0; right: -100%; height: 100%; width: 50%;
-            background: var(--dark-amethyst); color: var(--text-primary);
-            box-shadow: -2px 0 5px rgba(0,0,0,.5); transition: right .5s ease; z-index: 1050;
-        }
-        .modal-right.active { right: 0; }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,.5); z-index: 1040; display: none;
-        }
-        .modal-overlay.active { display: block; }
     </style>
 </head>
 <body>
@@ -148,12 +135,6 @@
 
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-controller="Tasks" asp-action="Index">
-                                My Tasks
-                            </a>
-                        </li>
-
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
@@ -330,33 +311,6 @@
     </div>
 </div>
 
-<!-- Session + Task slide-in -->
-<div id="sessionTaskModal" class="modal-right">
-    <div class="p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h5 style="color:var(--text-primary)">🚀 Quick Actions</h5>
-            <button type="button" class="btn-close" id="slideInClose" aria-label="Close"></button>
-        </div>
-
-        <div class="d-flex flex-column gap-3">
-            <a href="/Session"
-               class="btn btn-primary w-100 py-3"
-               style="font-size:16px;letter-spacing:.5px;">
-                ▶ Start Focus Session
-            </a>
-            <a href="/Tasks/Create"
-               class="btn btn-outline-secondary w-100 py-3"
-               style="font-size:16px;">
-                ✏️ Create New Task
-            </a>
-            <a href="/Tasks"
-               class="btn btn-outline-secondary w-100 py-3"
-               style="font-size:16px;">
-                🗂️ My Tasks
-            </a>
-        </div>
-    </div>
-</div>
 
 <script>
 // ── Session History ────────────────────────────────────────────────
@@ -484,92 +438,4 @@
     }
 })();
 
-// ── Slide-in planet modal ──────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    const planets = document.querySelectorAll('.planet');
-    const modal   = document.getElementById('sessionTaskModal');
-    let overlay   = document.querySelector('.modal-overlay');
-    const planetVisualization = document.getElementById('planet-visualization');
-
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.classList.add('modal-overlay');
-        document.body.appendChild(overlay);
-    }
-
-    let clonedPlanet = null;
-
-    planets.forEach(planet => {
-        planet.addEventListener('click', () => {
-            const planetRect = planet.getBoundingClientRect();
-            const startTop  = planetRect.top;
-            const startLeft = planetRect.left;
-
-            if (planetVisualization) {
-                planetVisualization.style.opacity = '0';
-                planetVisualization.style.transition = 'opacity 0.3s ease';
-                planetVisualization.style.pointerEvents = 'none';
-            }
-
-            const cloneGroup = planet.cloneNode(true);
-            const svgNS = 'http://www.w3.org/2000/svg';
-            const newSvg = document.createElementNS(svgNS, 'svg');
-            newSvg.setAttribute('width', '120');
-            newSvg.setAttribute('height', '120');
-            newSvg.setAttribute('viewBox', '-50 -50 200 200');
-            newSvg.style.cssText = `position:fixed;top:${startTop}px;left:${startLeft}px;z-index:9999;transition:top .5s ease,left .5s ease,transform .5s ease;cursor:pointer`;
-
-            const originalDefs = planetVisualization?.querySelector('defs');
-            if (originalDefs) newSvg.appendChild(originalDefs.cloneNode(true));
-
-            cloneGroup.removeAttribute('transform');
-            cloneGroup.removeAttribute('data-cx');
-            cloneGroup.removeAttribute('data-cy');
-
-            const cx = parseFloat(planet.getAttribute('data-cx'));
-            const cy = parseFloat(planet.getAttribute('data-cy'));
-
-            cloneGroup.querySelectorAll('circle').forEach(el => {
-                el.setAttribute('cx', 50 + (parseFloat(el.getAttribute('cx')) - cx));
-                el.setAttribute('cy', 50 + (parseFloat(el.getAttribute('cy')) - cy));
-            });
-            cloneGroup.querySelectorAll('ellipse').forEach(el => {
-                el.setAttribute('cx', 50 + (parseFloat(el.getAttribute('cx')) - cx));
-                el.setAttribute('cy', 50 + (parseFloat(el.getAttribute('cy')) - cy));
-            });
-
-            newSvg.appendChild(cloneGroup);
-            document.body.appendChild(newSvg);
-            if (clonedPlanet) clonedPlanet.remove();
-            clonedPlanet = newSvg;
-
-            setTimeout(() => {
-                newSvg.style.top  = `${(window.innerHeight / 2) - 60}px`;
-                newSvg.style.left = `${(window.innerWidth * 0.2) - 60}px`;
-                newSvg.style.transform = 'scale(4)';
-            }, 10);
-
-            modal.classList.add('active');
-            overlay.classList.add('active');
-        });
-    });
-
-    const closeSlideIn = () => {
-        modal.classList.remove('active');
-        overlay.classList.remove('active');
-        if (clonedPlanet) {
-            clonedPlanet.style.opacity = '0';
-            clonedPlanet.style.transition = 'opacity 0.3s ease';
-            setTimeout(() => { clonedPlanet?.remove(); clonedPlanet = null; }, 300);
-        }
-        if (planetVisualization) {
-            planetVisualization.style.opacity = '1';
-            planetVisualization.style.pointerEvents = 'auto';
-        }
-    };
-
-    overlay.addEventListener('click', closeSlideIn);
-    modal.addEventListener('click', e => { if (e.target.id === 'slideInClose') closeSlideIn(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlideIn(); });
-});
 </script>

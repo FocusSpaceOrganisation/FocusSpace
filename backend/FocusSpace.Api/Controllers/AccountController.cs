@@ -1,9 +1,11 @@
 ﻿using FocusSpace.Application.DTOs;
 using FocusSpace.Application.Interfaces;
 using FocusSpace.Domain.Entities;
+using FocusSpace.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FocusSpace.Api.Controllers
 {
@@ -15,6 +17,7 @@ namespace FocusSpace.Api.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IEmailService _emailService;
+        private readonly AppDbContext _context;
         private readonly ILogger<AccountController> _logger;
 
         private readonly IWebHostEnvironment _env;
@@ -23,12 +26,14 @@ namespace FocusSpace.Api.Controllers
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IEmailService emailService,
+            AppDbContext context,
             IWebHostEnvironment env,
             ILogger<AccountController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailService = emailService;
+            _context = context;
             _env = env;
             _logger = logger;
         }
@@ -49,6 +54,16 @@ namespace FocusSpace.Api.Controllers
             if (!ModelState.IsValid)
                 return View(dto);
 
+            var defaultPlanet = await _context.Planets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Name.ToLower() == "earth");
+
+            if (defaultPlanet is null)
+            {
+                ModelState.AddModelError(string.Empty, "Default planet Earth was not found. Contact administrator.");
+                return View(dto);
+            }
+
             // Check for duplicate username
             if (await _userManager.FindByNameAsync(dto.Username) is not null)
             {
@@ -63,7 +78,7 @@ namespace FocusSpace.Api.Controllers
                 IsApproved = _env.IsDevelopment(), // у dev одразу approved
                 EmailConfirmed = _env.IsDevelopment(), // у dev одразу confirmed
                 CreatedAt = DateTime.UtcNow,
-                CurrentPlanetId = 1
+                CurrentPlanetId = defaultPlanet.Id
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);

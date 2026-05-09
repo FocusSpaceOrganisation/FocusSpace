@@ -1,4 +1,5 @@
 using FocusSpace.Domain.Entities;
+using FocusSpace.Domain.Enums;
 using FocusSpace.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -34,10 +35,11 @@ namespace FocusSpace.Api.Controllers
             ViewBag.TotalUsers = await _context.Users.CountAsync();
             ViewBag.ActiveTasks = await _context.Tasks.CountAsync();
             ViewBag.ActiveSessions = await _context.Sessions
-                .CountAsync(s => s.Status == FocusSpace.Domain.Enums.SessionStatus.Ongoing);
+                .CountAsync(s => s.Status == SessionStatus.Ongoing || s.Status == SessionStatus.Paused);
             ViewBag.BlockedUsers = await _context.Users.CountAsync(u => u.IsBlocked);
             ViewBag.PendingApproval = await _context.Users
                 .CountAsync(u => !u.IsApproved && u.EmailConfirmed);
+            ViewBag.TotalPlanets = await _context.Planets.CountAsync();
 
             return View();
         }
@@ -62,6 +64,56 @@ namespace FocusSpace.Api.Controllers
                 .ToListAsync();
 
             return Json(users);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetActiveSessions()
+        {
+            var sessions = await _context.Sessions
+                .Where(s => s.Status == SessionStatus.Ongoing || s.Status == SessionStatus.Paused)
+                .Include(s => s.User)
+                .Include(s => s.Task)
+                .OrderByDescending(s => s.StartTime)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.UserId,
+                    UserName = s.User.UserName,
+                    UserEmail = s.User.Email,
+                    TaskTitle = s.Task != null ? s.Task.Title : null,
+                    s.StartTime,
+                    s.PlannedDuration,
+                    Status = s.Status.ToString()
+                })
+                .ToListAsync();
+
+            return Json(sessions);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CloseSession(int id)
+        {
+            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.Id == id);
+            if (session is null)
+                return NotFound(new { message = "Session not found." });
+
+            if (session.Status == SessionStatus.Completed || session.Status == SessionStatus.Aborted)
+                return BadRequest(new { message = "Session is already closed." });
+
+            var now = DateTime.UtcNow;
+            session.EndTime = now;
+
+            var actualDuration = now - session.StartTime;
+            session.ActualDuration = actualDuration < TimeSpan.Zero ? TimeSpan.Zero : actualDuration;
+            session.Status = SessionStatus.Aborted;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogWarning("Session {SessionId} closed by admin {Admin}",
+                session.Id, User.Identity?.Name);
+
+            return Ok(new { message = "Session closed." });
         }
 
       
@@ -95,6 +147,9 @@ namespace FocusSpace.Api.Controllers
                 return NotFound(new { message = "User not found." });
 
             var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser is null)
+                return Unauthorized(new { message = "Current admin user not found." });
+
             if (currentUser.Id == id)
                 return BadRequest(new { message = "Cannot block yourself." });
 
@@ -138,6 +193,9 @@ namespace FocusSpace.Api.Controllers
                 return NotFound(new { message = "User not found." });
 
             var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser is null)
+                return Unauthorized(new { message = "Current admin user not found." });
+
             if (currentUser.Id == id)
                 return BadRequest(new { message = "Cannot promote yourself." });
 
@@ -165,6 +223,9 @@ namespace FocusSpace.Api.Controllers
                 return NotFound(new { message = "User not found." });
 
             var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser is null)
+                return Unauthorized(new { message = "Current admin user not found." });
+
             if (currentUser.Id == id)
                 return BadRequest(new { message = "Cannot delete yourself." });
 
@@ -176,6 +237,95 @@ namespace FocusSpace.Api.Controllers
                 user.Id, user.Email, User.Identity?.Name);
 
             return Ok(new { message = $"User {user.Email} has been deleted." });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetPlanets()
+        {
+            var planets = await _context.Planets
+                .OrderBy(p => p.OrderNumber)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.OrderNumber,
+                    p.Description,
+                    p.DistanceFromPrevious,
+                    p.ImageUrl,
+                    UsersCount = p.Users.Count
+                })
+                .ToListAsync();
+
+            return Json(planets);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreatePlanet([FromBody] CreatePlanetRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+                return BadRequest(new { message = "Planet name is required." });
+
+            if (request.OrderNumber <= 0)
+                return BadRequest(new { message = "Order number must be greater than zero." });
+
+            var normalizedName = request.Name.Trim();
+            var nameExists = await _context.Planets.AnyAsync(p => p.Name.ToLower() == normalizedName.ToLower());
+            if (nameExists)
+                return BadRequest(new { message = "Planet with this name already exists." });
+
+            var orderExists = await _context.Planets.AnyAsync(p => p.OrderNumber == request.OrderNumber);
+            if (orderExists)
+                return BadRequest(new { message = "Planet with this order number already exists." });
+
+            var planet = new Planet
+            {
+                Name = normalizedName,
+                OrderNumber = request.OrderNumber,
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                DistanceFromPrevious = request.DistanceFromPrevious,
+                ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim()
+            };
+
+            _context.Planets.Add(planet);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Planet {PlanetName} created by admin {Admin}",
+                planet.Name, User.Identity?.Name);
+
+            return Ok(new { message = $"Planet {planet.Name} created successfully." });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePlanet(int id)
+        {
+            var planet = await _context.Planets
+                .Include(p => p.Users)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (planet is null)
+                return NotFound(new { message = "Planet not found." });
+
+            if (planet.Users.Any())
+                return BadRequest(new { message = "Cannot delete planet that is assigned to users." });
+
+            _context.Planets.Remove(planet);
+            await _context.SaveChangesAsync();
+
+            _logger.LogWarning("Planet {PlanetName} deleted by admin {Admin}",
+                planet.Name, User.Identity?.Name);
+
+            return Ok(new { message = $"Planet {planet.Name} deleted." });
+        }
+
+        public sealed class CreatePlanetRequest
+        {
+            public string Name { get; set; } = string.Empty;
+            public int OrderNumber { get; set; }
+            public string? Description { get; set; }
+            public TimeSpan? DistanceFromPrevious { get; set; }
+            public string? ImageUrl { get; set; }
         }
     }
 }

@@ -1,168 +1,332 @@
-﻿@{
+@{
     ViewData["Title"] = "FocusSpace";
 }
+@model List<FocusSpace.Domain.Entities.Planet>
+@using System.Globalization
 
-<div class="position-relative" style="height:100vh;min-height:600px;margin-top:100px;">
-    <svg id="planet-visualization" width="100%" height="120%" viewBox="0 0 1020 950" preserveAspectRatio="xMidYMid meet" style="overflow:visible !important;">
+@{
+    var planets = (Model ?? new List<FocusSpace.Domain.Entities.Planet>())
+        .OrderBy(p => p.OrderNumber)
+        .ToList();
 
-        <!-- Orbit lines -->
-        <circle cx="510" cy="360" r="130" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.3" />
-        <circle cx="510" cy="360" r="180" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.3" />
-        <circle cx="510" cy="360" r="240" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.2" />
-        <circle cx="510" cy="360" r="310" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.2" />
-        <circle cx="510" cy="360" r="380" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.15" />
+    const double centerX = 510;
+    const double centerY = 360;
 
-        <!-- Планети -->
+    var minOrbit = 145d;
+    var maxOrbit = 300d;
+    var orbitStep = planets.Count > 1
+        ? (maxOrbit - minOrbit) / (planets.Count - 1)
+        : 0d;
+
+    var colorPairs = new[]
+    {
+        ("#b8b8b8", "#6d6d6d"),
+        ("#ffd784", "#efab3a"),
+        ("#91d8ff", "#2275d9"),
+        ("#f6a27f", "#c0501e"),
+        ("#d4a06a", "#8f6038"),
+        ("#f2d9aa", "#c49a67"),
+        ("#87f0ff", "#2db2c6"),
+        ("#7594ff", "#2f4ab8")
+    };
+
+    double GetPlanetSize(int index)
+    {
+        var sizes = new[] { 11d, 16d, 20d, 14d, 30d, 24d, 18d, 18d };
+        if (index < sizes.Length) return sizes[index];
+        return 14d + (index % 5) * 2d;
+    }
+
+    string GetPlanetType(string name)
+    {
+        var n = (name ?? string.Empty).Trim().ToLowerInvariant();
+        if (n is "mercury" or "venus" or "earth" or "mars") return "Rocky";
+        if (n is "jupiter" or "saturn") return "Gas Giant";
+        if (n is "uranus" or "neptune") return "Ice Giant";
+        return "Exoplanet";
+    }
+
+    string GetTypeClass(string type)
+    {
+        return type switch
+        {
+            "Rocky" => "type-rocky",
+            "Gas Giant" => "type-gas",
+            "Ice Giant" => "type-ice",
+            _ => "type-exo"
+        };
+    }
+
+    (double x, double y) GetPoint(double orbitRadius, double angleDeg)
+    {
+        var angleRad = Math.PI * angleDeg / 180.0;
+        return (
+            centerX + orbitRadius * Math.Cos(angleRad),
+            centerY + orbitRadius * Math.Sin(angleRad)
+        );
+    }
+}
+
+<form id="af-form" style="display:none">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="space-stage">
+    <svg id="planet-visualization"
+         width="100%"
+         height="100%"
+         viewBox="0 0 1020 820"
+         preserveAspectRatio="xMidYMid meet"
+         data-center-x="510"
+         data-center-y="360">
+
         <defs>
-            <!-- Mercury gradient -->
-            <radialGradient id="mercuryGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#a9a9a9;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#696969;stop-opacity:1" />
-            </radialGradient>
-            
-            <!-- Venus gradient -->
-            <radialGradient id="venusGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#ffdd82;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#fdb813;stop-opacity:1" />
-            </radialGradient>
-            
-            <!-- Earth gradient -->
-            <radialGradient id="earthGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#87ceeb;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#1e90ff;stop-opacity:1" />
-            </radialGradient>
-            
-            <!-- Mars gradient -->
-            <radialGradient id="marsGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#e27b58;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#c1440e;stop-opacity:1" />
-            </radialGradient>
-
-            <!-- Jupiter gradient -->
-            <radialGradient id="jupiterGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#c88b3a;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#8b6914;stop-opacity:1" />
-            </radialGradient>
-
-            <!-- Saturn gradient -->
-            <radialGradient id="saturnGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#fad5a5;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#d4a574;stop-opacity:1" />
-            </radialGradient>
-
-            <!-- Uranus gradient -->
-            <radialGradient id="uranusGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#4fd0e7;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#1fa8c7;stop-opacity:1" />
-            </radialGradient>
-
-            <!-- Neptune gradient -->
-            <radialGradient id="neptuneGradient" cx="35%" cy="35%">
-                <stop offset="0%" style="stop-color:#4166f5;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#0041b8;stop-opacity:1" />
-            </radialGradient>
-        </defs>
-
-        <!-- Сонце (center, не клікабельне) -->
-        <defs>
+            @for (var i = 0; i < planets.Count; i++)
+            {
+                var pair = colorPairs[i % colorPairs.Length];
+                <radialGradient id="planetGradient-@i" cx="35%" cy="35%">
+                    <stop offset="0%" style="stop-color:@pair.Item1;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:@pair.Item2;stop-opacity:1" />
+                </radialGradient>
+            }
             <radialGradient id="sunGradient" cx="40%" cy="40%">
                 <stop offset="0%" style="stop-color:#fdb813;stop-opacity:1" />
                 <stop offset="70%" style="stop-color:#fdb813;stop-opacity:1" />
                 <stop offset="100%" style="stop-color:#fd8813;stop-opacity:1" />
             </radialGradient>
         </defs>
-        <circle cx="510" cy="360" r="50" fill="url(#sunGradient)" />
-        <circle cx="510" cy="360" r="50" fill="#000" opacity="0.1" />
 
-        <!-- Планети з анімацією обертання -->
-        <g id="planets-orbit" style="animation: rotate 60s linear infinite; transform-origin: 510px 360px;">
+        @for (var i = 0; i < planets.Count; i++)
+        {
+            var orbit = minOrbit + i * orbitStep;
+            var opacity = Math.Max(0.12, 0.34 - i * 0.03);
+            <circle cx="@centerX"
+                    cy="@centerY"
+                    r="@orbit.ToString("0.###", CultureInfo.InvariantCulture)"
+                    fill="none"
+                    stroke="#7c3aed"
+                    stroke-width="1"
+                    opacity="@opacity.ToString("0.###", CultureInfo.InvariantCulture)" />
+        }
 
-        <!-- Mercury (орбіта 130, позиція вправо) -->
-        <g class="planet" data-name="Mercury" data-cx="640" data-cy="360">
-            <circle cx="640" cy="360" r="11" fill="url(#mercuryGradient)" />
-            <circle cx="640" cy="360" r="11" fill="#000" opacity="0.15" />
+        <circle cx="@centerX" cy="@centerY" r="50" fill="url(#sunGradient)" />
+        <circle cx="@centerX" cy="@centerY" r="50" fill="#000" opacity="0.1" />
+
+        <g id="planets-orbit" style="animation: rotate 70s linear infinite; transform-origin: 510px 360px;">
+            @for (var i = 0; i < planets.Count; i++)
+            {
+                var planet = planets[i];
+                var orbit = minOrbit + i * orbitStep;
+                var angle = planets.Count == 1 ? -90d : -90d + (360d / planets.Count) * i;
+                var point = GetPoint(orbit, angle);
+                var size = GetPlanetSize(i);
+                var type = GetPlanetType(planet.Name);
+                var typeClass = GetTypeClass(type);
+                var cx = point.x.ToString("0.###", CultureInfo.InvariantCulture);
+                var cy = point.y.ToString("0.###", CultureInfo.InvariantCulture);
+                var radius = size.ToString("0.###", CultureInfo.InvariantCulture);
+                var desc = planet.Description ?? string.Empty;
+                var distance = planet.DistanceFromPrevious?.ToString() ?? string.Empty;
+                <g class="planet @typeClass"
+                   data-id="@planet.Id"
+                   data-name="@planet.Name"
+                   data-type="@type"
+                   data-order="@planet.OrderNumber"
+                   data-description="@desc"
+                   data-distance="@distance"
+                   data-cx="@cx"
+                   data-cy="@cy"
+                   data-radius="@radius"
+                   tabindex="0"
+                   role="button"
+                   aria-label="Planet @planet.Name">
+                    <circle cx="@cx" cy="@cy" r="@radius" fill="url(#planetGradient-@i)" />
+                    <circle cx="@cx" cy="@cy" r="@radius" fill="#000" opacity="0.15" />
+                    @if (type == "Rocky")
+                    {
+                        <circle cx="@(point.x - size * 0.25)" cy="@(point.y - size * 0.18)" r="@(Math.Max(1d, size * 0.12))" fill="#2c2c2c" opacity="0.45" />
+                        <circle cx="@(point.x + size * 0.18)" cy="@(point.y + size * 0.12)" r="@(Math.Max(1d, size * 0.09))" fill="#2c2c2c" opacity="0.4" />
+                        <circle cx="@(point.x + size * 0.05)" cy="@(point.y - size * 0.28)" r="@(Math.Max(1d, size * 0.07))" fill="#f1e3bf" opacity="0.35" />
+                    }
+                    else if (type == "Gas Giant")
+                    {
+                        <ellipse cx="@cx"
+                                 cy="@cy"
+                                 rx="@(size * 1.68)"
+                                 ry="@(Math.Max(5d, size * 0.42))"
+                                 fill="none"
+                                 stroke="#f1d1a0"
+                                 stroke-width="2"
+                                 opacity="0.5" />
+                        <ellipse cx="@cx"
+                                 cy="@cy"
+                                 rx="@(size * 0.95)"
+                                 ry="@(Math.Max(2d, size * 0.14))"
+                                 fill="#ffffff"
+                                 opacity="0.10" />
+                    }
+                    else if (type == "Ice Giant")
+                    {
+                        <ellipse cx="@cx"
+                                 cy="@cy"
+                                 rx="@(size * 0.8)"
+                                 ry="@(size * 0.38)"
+                                 fill="none"
+                                 stroke="#d7fbff"
+                                 stroke-width="1.5"
+                                 opacity="0.45"
+                                 transform="rotate(-25 @cx @cy)" />
+                        <circle cx="@(point.x + size * 0.18)" cy="@(point.y - size * 0.08)" r="@(Math.Max(1d, size * 0.07))" fill="#f8ffff" opacity="0.5" />
+                    }
+                    else
+                    {
+                        <circle cx="@cx" cy="@cy" r="@(Math.Max(2d, size * 0.12))" fill="#ffffff" opacity="0.2" />
+                    }
+                </g>
+            }
         </g>
 
-        <!-- Venus (орбіта 180, позиція вверх-вправо) -->
-        <g class="planet" data-name="Venus" data-cx="637" data-cy="183">
-            <circle cx="637" cy="183" r="28" fill="url(#venusGradient)" />
-            <circle cx="637" cy="183" r="28" fill="#000" opacity="0.1" />
-        </g>
-
-        <!-- Earth (орбіта 240, позиція вверх) -->
-        <g class="planet" data-name="Earth" data-cx="510" data-cy="120">
-            <circle cx="510" cy="120" r="30" fill="url(#earthGradient)" />
-            <!-- Land masses -->
-            <ellipse cx="520" cy="110" rx="8" ry="10" fill="#228b22" opacity="0.7" />
-            <ellipse cx="500" cy="125" rx="6" ry="8" fill="#228b22" opacity="0.7" />
-            <!-- Clouds -->
-            <circle cx="515" cy="115" r="3" fill="#fff" opacity="0.6" />
-            <circle cx="503" cy="120" r="2" fill="#fff" opacity="0.5" />
-            <circle cx="510" cy="95" r="2" fill="#fff" opacity="0.6" />
-        </g>
-
-        <!-- Mars (орбіта 310, позиція вверх-влево) -->
-        <g class="planet" data-name="Mars" data-cx="383" data-cy="81">
-            <circle cx="383" cy="81" r="16" fill="url(#marsGradient)" />
-            <!-- Surface features -->
-            <circle cx="388" cy="71" r="2" fill="#8b4513" opacity="0.5" />
-            <circle cx="378" cy="86" r="1.5" fill="#8b4513" opacity="0.5" />
-            <circle cx="393" cy="91" r="1" fill="#8b4513" opacity="0.5" />
-            <circle cx="383" cy="81" r="16" fill="#000" opacity="0.1" />
-        </g>
-
-        <!-- Jupiter (орбіта 380, позиція влево) -->
-        <g class="planet" data-name="Jupiter" data-cx="130" data-cy="360">
-            <circle cx="130" cy="360" r="67" fill="url(#jupiterGradient)" />
-            <!-- Bands -->
-            <ellipse cx="130" cy="340" rx="67" ry="12" fill="#6b5310" opacity="0.5" />
-            <ellipse cx="130" cy="380" rx="67" ry="12" fill="#6b5310" opacity="0.4" />
-            <circle cx="130" cy="360" r="67" fill="#000" opacity="0.12" />
-        </g>
-
-        <!-- Saturn (орбіта 450, позиція вниз-влево) -->
-        <g class="planet" data-name="Saturn" data-cx="291" data-cy="521">
-            <!-- Ring -->
-            <ellipse cx="291" cy="521" rx="85" ry="24" fill="none" stroke="#d4a574" stroke-width="8" opacity="0.6" />
-            <!-- Planet -->
-            <circle cx="291" cy="521" r="56" fill="url(#saturnGradient)" />
-            <!-- Bands -->
-            <ellipse cx="291" cy="503" rx="56" ry="10" fill="#a0826d" opacity="0.4" />
-            <ellipse cx="291" cy="539" rx="56" ry="10" fill="#a0826d" opacity="0.3" />
-            <circle cx="291" cy="521" r="56" fill="#000" opacity="0.1" />
-        </g>
-
-        <!-- Uranus (орбіта 380, позиція вниз) -->
-        <g class="planet" data-name="Uranus" data-cx="510" data-cy="600">
-            <circle cx="510" cy="600" r="38" fill="url(#uranusGradient)" />
-            <!-- Subtle bands -->
-            <ellipse cx="510" cy="588" rx="38" ry="6" fill="#0a7a9e" opacity="0.3" />
-            <ellipse cx="510" cy="612" rx="38" ry="6" fill="#0a7a9e" opacity="0.2" />
-            <circle cx="510" cy="600" r="38" fill="#000" opacity="0.15" />
-        </g>
-
-        <!-- Neptune (орбіта 450, позиція вниз-вправо) -->
-        <g class="planet" data-name="Neptune" data-cx="729" data-cy="521">
-            <circle cx="729" cy="521" r="36" fill="url(#neptuneGradient)" />
-            <!-- Storm/feature -->
-            <ellipse cx="740" cy="514" rx="13" ry="8" fill="#2a3fa0" opacity="0.6" />
-            <!-- Bands -->
-            <ellipse cx="729" cy="504" rx="36" ry="6" fill="#003a9e" opacity="0.3" />
-            <ellipse cx="729" cy="533" rx="36" ry="6" fill="#003a9e" opacity="0.2" />
-            <circle cx="729" cy="521" r="36" fill="#000" opacity="0.15" />
-        </g>
-
-        <!-- Ракета -->
         <g id="rocket" transform="translate(550, 120)">
-            <!-- Крила -->
-            <!-- Тіло ракети -->
             <g fill="lightgray" fill-rule="evenodd" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" transform="translate(4 1)">
                 <path d="m6.5 18.5c3-2.5021966 4-5.5021966 4-9 0-3.49780342-1-6.49780342-4-9-3 2.50219658-4 5.50219658-4 9 0 3.4978034 1 6.4978034 4 9z"/>
                 <path fill="red" d="m10.0620355 13.3616971c.4244504.2452152.814833.5459803 1.1711478.9022951 1.1190122 1.1190122 1.6901459 2.5740294 1.7134011 4.3650515-2.5082701-.109848-3.88207621-.7645704-4.92553235-1.6471655m-5.11545113-3.6201811c-.42445038.2452152-.81483298.5459803-1.17114781.9022951-1.11901221 1.1190122-1.6901459 2.5740294-1.71340106 4.3650515 2.50827003-.109848 3.88207616-.7645704 4.9255323-1.6471655"/>
                 <circle cx="6.5" cy="6.5" r="2" fill="cyan"/>
             </g>
         </g>
-        </g>
+    </svg>
+
+    <aside id="planet-info" class="planet-info">
+        <div class="planet-panel-head">
+            <h4 id="planet-info-name" class="planet-panel-title">Choose a Planet</h4>
+            <button id="close-planet-panel" class="planet-panel-close" type="button" aria-label="Close">×</button>
+        </div>
+        <p id="planet-info-type" class="planet-info-type"></p>
+        <p id="planet-info-description" class="planet-info-description"></p>
+        <p id="planet-info-distance" class="planet-info-distance"></p>
+
+        <div id="planet-actions" class="planet-actions hidden">
+            <div class="planet-actions-title">Timer</div>
+            <label class="planet-actions-label" for="planet-task-minutes">Minutes</label>
+            <input id="planet-task-minutes" class="planet-actions-input" type="number" min="1" max="300" value="25" />
+            <button id="planet-start-session" class="planet-action-btn" type="button">Start timer</button>
+            <p id="planet-actions-note" class="planet-actions-note"></p>
+        </div>
+    </aside>
+
+    <div id="planet-tooltip" class="planet-tooltip" aria-hidden="true"></div>
+</div>
+
+<div class="container mt-4 mb-4">
+    <div class="d-flex justify-content-center mb-3">
+        <a href="/Session" class="btn btn-outline-info" id="openFocusTimerBtn">Open Focus Timer</a>
+    </div>
+    <h3 class="text-center mb-4">Available Planets</h3>
+    @if (Model is not null && Model.Any())
+    {
+        <div class="row g-3">
+            @foreach (var planet in Model)
+            {
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 bg-dark text-light border-secondary">
+                        <div class="card-body">
+                            <h5 class="card-title">#@planet.OrderNumber @planet.Name</h5>
+                            <p class="card-text text-secondary mb-2">
+                                @(string.IsNullOrWhiteSpace(planet.Description) ? "No description" : planet.Description)
+                            </p>
+                            @if (planet.DistanceFromPrevious.HasValue)
+                            {
+                                <div class="small text-info">Distance: @planet.DistanceFromPrevious</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-center text-muted">No planets found.</p>
+    }
+</div>
+
+<div class="focus-overlay" id="focusModal" aria-hidden="true">
+    <div class="focus-modal" role="dialog" aria-modal="true" aria-label="Focus timer">
+        <button class="focus-close" id="focusModalClose" type="button" aria-label="Close">x</button>
+        <div class="focus-grid">
+            <section class="focus-panel focus-tasks">
+                <div class="focus-panel-header">
+                    <h3 class="focus-panel-title">Tasks</h3>
+                    <button class="focus-ghost-btn" id="refreshTasksBtn" type="button">Refresh</button>
+                </div>
+                <div class="task-search">
+                    <input id="taskSearchInput" type="text" placeholder="Search tasks" />
+                    <button class="focus-ghost-btn" id="clearTaskSelectionBtn" type="button">Clear</button>
+                </div>
+                <div id="selectedTaskDisplay" class="selected-task">Bound task: None</div>
+                <div id="taskList" class="task-list"></div>
+                <div id="taskEmpty" class="task-empty">No tasks yet.</div>
+                <div class="task-create">
+                    <div class="task-create-title">Create task</div>
+                    <input id="newTaskTitle" type="text" placeholder="Task title" maxlength="300" />
+                    <textarea id="newTaskDescription" placeholder="Task description (optional)" maxlength="2000"></textarea>
+                    <button class="focus-primary-btn" id="createTaskBtn" type="button">Create task</button>
+                    <div id="taskCreateNote" class="task-note"></div>
+                </div>
+            </section>
+            <section class="focus-panel focus-timer">
+                <div class="timer-shell">
+                    <div class="timer-card" id="setup">
+                        <div class="timer-header">
+                            <h4 class="timer-title">Focus Timer</h4>
+                            <p class="timer-subtitle">Pick a duration and press start.</p>
+                        </div>
+
+                        <label class="timer-label" for="minutesInput">Minutes</label>
+                        <input type="number" id="minutesInput" class="timer-input" min="1" max="180" value="25" />
+                        <div id="inputError" class="timer-error" style="display:none;"></div>
+
+                        <button class="timer-primary" id="startTimerBtn" type="button">Start timer</button>
+                        <div id="startError" class="timer-error" style="display:none;"></div>
+                        <div id="taskBindingStatus" class="task-binding">Bound task: None</div>
+                    </div>
+
+                    <div class="timer-card" id="timerDisplay" style="display:none">
+                        <div class="timer-header">
+                            <h4 class="timer-title">Focusing...</h4>
+                            <p id="activeTaskLabel" class="timer-subtitle"></p>
+                        </div>
+                        <div class="timer-count" id="timeLeft">00:00</div>
+                        <div class="timer-actions">
+                            <button class="timer-secondary" id="pauseBtn" type="button">Pause</button>
+                            <button class="timer-danger" id="cancelBtn" type="button">Cancel</button>
+                        </div>
+                        <div id="cancelConfirm" class="timer-confirm" style="display:none;">
+                            <p>Cancel this session?</p>
+                            <div class="timer-actions">
+                                <button class="timer-danger" id="confirmCancelBtn" type="button">Yes, cancel</button>
+                                <button class="timer-secondary" id="cancelBackBtn" type="button">No</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timer-card" id="planetInfoCard" style="display:none">
+                        <div class="planet-card-title">Planet</div>
+                        <div class="planet-card-name" id="planetInfoName"></div>
+                        <div class="planet-card-type" id="planetInfoType"></div>
+                        <div class="planet-card-description" id="planetInfoDescription"></div>
+                        <div class="planet-card-distance" id="planetInfoDistance"></div>
+                    </div>
+
+                    <div class="timer-card" id="doneMessage" style="display:none">
+                        <div class="timer-done">OK</div>
+                        <h4 class="timer-title">Session Complete!</h4>
+                        <p class="timer-subtitle">Great work. Take a short break.</p>
+                        <button class="timer-primary" id="resetTimerBtn" type="button">New session</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
 </div>
 
 @if (!User.Identity!.IsAuthenticated)
@@ -180,23 +344,629 @@
         </div>
     </div>
 }
-else
-{
-    <div class="text-center mt-4">
-        @* <h2 class="mb-3">Welcome back, @User.Identity.Name!</h2>
-        <a asp-controller="Tasks" asp-action="Index" class="btn btn-primary btn-lg">
-            Go to My Tasks
-        </a> *@
-    </div>
-}
 
 <style>
-    @@keyframes rotate {
-        from {
-            transform: rotate(0deg);
+    .space-stage {
+        position: relative;
+        width: min(1080px, 96vw);
+        height: min(76vh, 740px);
+        min-height: 520px;
+        margin: 86px auto 0;
+        border-radius: 16px;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 20% 20%, rgba(125, 58, 237, 0.18), transparent 40%),
+            radial-gradient(circle at 80% 80%, rgba(0, 173, 181, 0.14), transparent 45%),
+            linear-gradient(180deg, #0e0f1a 0%, #14172a 100%);
+        border: 1px solid rgba(124, 58, 237, 0.28);
+    }
+
+    #planet-visualization {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .planet {
+        cursor: pointer;
+        transition: transform 0.25s ease;
+    }
+
+    .planet circle {
+        transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+    }
+
+    .planet:hover circle,
+    .planet.selected circle,
+    .planet:focus-visible circle {
+        stroke: #ffffff;
+        stroke-width: 2;
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
+    }
+
+    .planet.type-rocky circle:first-child {
+        stroke: rgba(230, 220, 185, 0.4);
+        stroke-width: 0.8;
+    }
+
+    .planet.type-gas circle:first-child {
+        stroke: rgba(250, 201, 112, 0.55);
+        stroke-width: 1;
+    }
+
+    .planet.type-ice circle:first-child {
+        stroke: rgba(126, 217, 255, 0.55);
+        stroke-width: 1;
+    }
+
+    .planet.type-exo circle:first-child {
+        stroke: rgba(186, 162, 255, 0.55);
+        stroke-width: 1;
+    }
+
+    .planet-info {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        width: min(340px, calc(100% - 28px));
+        max-height: calc(100% - 28px);
+        background: rgba(12, 16, 30, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 16px;
+        color: #f0f2ff;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        overflow-y: auto;
+        transition: all 0.3s ease;
+    }
+
+    .planet-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .planet-panel-title {
+        margin: 0;
+        font-size: 18px;
+        color: #f2e9ff;
+    }
+
+    .planet-panel-close {
+        background: none;
+        border: none;
+        color: #9aa0b6;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        display: none;
+    }
+
+    .planet-info h4 {
+        margin: 0 0 6px;
+        font-size: 18px;
+    }
+
+    .planet-info-type {
+        margin: 0 0 8px;
+        color: #ffd98e;
+        font-weight: 600;
+    }
+
+    .planet-info-description {
+        margin: 0 0 8px;
+        color: #d6d9f0;
+        font-size: 14px;
+        line-height: 1.35;
+    }
+
+    .planet-info-distance {
+        margin: 0;
+        color: #8edcff;
+        font-size: 13px;
+    }
+
+    .planet-actions {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .planet-actions.hidden {
+        display: none;
+    }
+
+    .planet-actions-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #b9c2ff;
+        margin-bottom: 8px;
+    }
+
+    .planet-actions-label {
+        display: block;
+        font-size: 11px;
+        color: #9aa0b6;
+        margin-bottom: 4px;
+    }
+
+    .planet-actions-input {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(10, 12, 24, 0.6);
+        color: #f0f2ff;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    .planet-action-btn {
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: #2f7bf6;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .planet-action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+    .planet-actions-note {
+        margin: 8px 0 0;
+        font-size: 11px;
+        color: #8edcff;
+        min-height: 14px;
+    }
+
+    .planet-tooltip {
+        position: absolute;
+        pointer-events: none;
+        z-index: 5;
+        display: none;
+        max-width: 220px;
+        background: rgba(7, 10, 20, 0.92);
+        color: #f5f7ff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 10px 12px;
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(8px);
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .planet-tooltip strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 4px;
+        color: #ffd98e;
+    }
+
+    .planet-tooltip .tooltip-meta {
+        color: #9fdcff;
+        margin-top: 6px;
+    }
+
+    @@media (max-width: 768px) {
+        .space-stage {
+            margin-top: 74px;
+            min-height: 440px;
+            height: 68vh;
         }
-        to {
-            transform: rotate(360deg);
+
+        .planet-info {
+            position: static;
+            width: calc(100% - 24px);
+            margin: 12px;
+        }
+    }
+
+    @@keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .timer-shell {
+        width: min(520px, 92vw);
+        margin: 40px auto 60px;
+        display: grid;
+        gap: 18px;
+    }
+
+    .timer-card {
+        background: linear-gradient(160deg, rgba(24, 26, 48, 0.95), rgba(16, 18, 34, 0.95));
+        border: 1px solid rgba(168, 139, 250, 0.25);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        color: #e8e9ff;
+        text-align: center;
+    }
+
+    .timer-header {
+        margin-bottom: 18px;
+    }
+
+    .timer-title {
+        margin: 0 0 6px;
+        font-size: 20px;
+        color: #cdb7ff;
+        letter-spacing: 0.5px;
+    }
+
+    .timer-subtitle {
+        margin: 0;
+        color: #9a9fc2;
+        font-size: 13px;
+    }
+
+    .timer-label {
+        display: block;
+        text-align: left;
+        font-size: 12px;
+        color: #9a9fc2;
+        margin-bottom: 6px;
+    }
+
+    .timer-input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(130, 122, 182, 0.4);
+        background: rgba(12, 14, 26, 0.8);
+        color: #e8e9ff;
+        margin-bottom: 12px;
+        text-align: center;
+        font-size: 16px;
+    }
+
+    .timer-primary,
+    .timer-secondary,
+    .timer-danger {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .timer-primary {
+        background: #7c3aed;
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(124, 58, 237, 0.35);
+    }
+
+    .timer-secondary {
+        background: rgba(31, 33, 54, 0.9);
+        color: #d9dbf5;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .timer-danger {
+        background: rgba(239, 68, 68, 0.9);
+        color: #fff;
+    }
+
+    .timer-actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .timer-count {
+        font-size: 54px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        color: #a78bfa;
+        margin: 16px 0;
+    }
+
+    .timer-error {
+        color: #f87171;
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
+
+    .timer-confirm {
+        margin-top: 14px;
+        color: #c8cbee;
+    }
+
+    .timer-done {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+
+    .planet-card-title {
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 1px;
+        color: #9a9fc2;
+        margin-bottom: 10px;
+    }
+
+    .planet-card-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e8e9ff;
+        margin-bottom: 6px;
+    }
+
+    .planet-card-type {
+        font-size: 12px;
+        color: #a78bfa;
+        margin-bottom: 8px;
+    }
+
+    .planet-card-description {
+        font-size: 13px;
+        color: #c8cbee;
+        line-height: 1.4;
+        margin-bottom: 8px;
+    }
+
+    .planet-card-distance {
+        font-size: 12px;
+        color: #9a9fc2;
+    }
+
+    body.focus-open {
+        overflow: hidden;
+    }
+
+    .focus-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(7, 10, 20, 0.6);
+        backdrop-filter: blur(10px);
+        z-index: 3000;
+    }
+
+    .focus-overlay.active {
+        display: flex;
+    }
+
+    .focus-modal {
+        width: min(980px, 96vw);
+        max-height: 90vh;
+        overflow: hidden;
+        border-radius: 18px;
+        background: rgba(16, 18, 34, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        position: relative;
+    }
+
+    .focus-close {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: #c8cbee;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+    }
+
+    .focus-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 16px;
+        padding: 18px;
+        max-height: 90vh;
+        overflow: hidden;
+    }
+
+    .focus-panel {
+        background: rgba(20, 22, 40, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 14px;
+        overflow: hidden;
+    }
+
+    .focus-panel-title {
+        margin: 0;
+        font-size: 16px;
+        color: #e8e9ff;
+    }
+
+    .focus-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .focus-ghost-btn {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: transparent;
+        color: #c8cbee;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .focus-primary-btn {
+        width: 100%;
+        border: none;
+        background: #7c3aed;
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .task-search {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .task-search input {
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(10, 12, 24, 0.6);
+        color: #f0f2ff;
+        padding: 8px 10px;
+    }
+
+    .selected-task {
+        font-size: 12px;
+        color: #a78bfa;
+        margin-bottom: 8px;
+    }
+
+    .task-binding {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #c8cbee;
+        text-align: left;
+    }
+
+    .task-list {
+        max-height: 260px;
+        overflow-y: auto;
+        display: grid;
+        gap: 8px;
+        padding-right: 4px;
+        margin-bottom: 10px;
+    }
+
+    .task-item {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 10px;
+        cursor: pointer;
+        background: rgba(12, 16, 30, 0.7);
+        transition: border 0.2s ease, background 0.2s ease;
+    }
+
+    .task-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .task-delete-btn {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: transparent;
+        color: #ff8a80;
+        padding: 4px 8px;
+        border-radius: 8px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+    .task-item.selected {
+        border-color: #7c3aed;
+        background: rgba(124, 58, 237, 0.18);
+    }
+
+    .task-title {
+        font-weight: 600;
+        color: #e8e9ff;
+        font-size: 13px;
+    }
+
+    .task-description {
+        font-size: 12px;
+        color: #b2b7d6;
+        margin-top: 4px;
+    }
+
+    .task-bound {
+        margin-top: 6px;
+        font-size: 11px;
+        color: #a78bfa;
+    }
+
+    .task-empty {
+        font-size: 12px;
+        color: #9a9fc2;
+        padding: 8px 0;
+        display: none;
+    }
+
+    .task-create {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        margin-top: 8px;
+        padding-top: 10px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .task-create-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #b9c2ff;
+    }
+
+    .task-create input,
+    .task-create textarea {
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(10, 12, 24, 0.6);
+        color: #f0f2ff;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .task-create textarea {
+        resize: vertical;
+        min-height: 70px;
+    }
+
+    .task-note {
+        font-size: 11px;
+        color: #9fdcff;
+        min-height: 14px;
+    }
+
+    .focus-timer .timer-shell {
+        margin: 0;
+        width: 100%;
+    }
+
+    .focus-timer .timer-card {
+        margin: 0 0 12px 0;
+    }
+
+    @@media (max-width: 900px) {
+        .focus-grid {
+            grid-template-columns: 1fr;
+            overflow-y: auto;
+            max-height: 86vh;
         }
     }
 </style>
@@ -205,164 +975,1083 @@ else
     <script>
         const rocket = document.getElementById('rocket');
         const planetsOrbit = document.getElementById('planets-orbit');
+        const planetNodes = Array.from(document.querySelectorAll('.planet'));
         const svgElement = document.getElementById('planet-visualization');
-        const svgRect = svgElement.getBoundingClientRect();
-        const viewBox = svgElement.getAttribute('viewBox').split(' ').map(Number);
-        const scaleX = svgRect.width / (viewBox[2] - viewBox[0]);
-        const scaleY = svgRect.height / (viewBox[3] - viewBox[1]);
-        
-        let currentX = 550, currentY = 120;
-        let isAnimating = false;
-        let currentRotation = 0;
-        let currentTargetPlanet = null; // Track which planet rocket is orbiting
-        let orbitAnimationId = null; // Track animation frame ID to cancel if needed
+        const centerX = parseFloat(svgElement.dataset.centerX || '510');
+        const centerY = parseFloat(svgElement.dataset.centerY || '360');
+        const spaceStage = document.querySelector('.space-stage');
+        const planetTooltip = document.getElementById('planet-tooltip');
+        const defaultViewBox = { x: 0, y: 0, width: 1020, height: 820 };
 
-        function getOrbitRotation() {
-            const transform = planetsOrbit.getAttribute('style');
-            const rotateMatch = transform.match(/rotate\s*\(\s*([0-9.]+)/);
-            return rotateMatch ? parseFloat(rotateMatch[1]) : 0;
+        const infoName = document.getElementById('planet-info-name');
+        const infoType = document.getElementById('planet-info-type');
+        const infoDescription = document.getElementById('planet-info-description');
+        const infoDistance = document.getElementById('planet-info-distance');
+        const closePlanetPanel = document.getElementById('close-planet-panel');
+        const planetActions = document.getElementById('planet-actions');
+        const taskMinutesInput = document.getElementById('planet-task-minutes');
+        const startSessionButton = document.getElementById('planet-start-session');
+        const actionsNote = document.getElementById('planet-actions-note');
+        const isAuthenticated = @((User.Identity?.IsAuthenticated ?? false).ToString().ToLowerInvariant());
+        const zoomEnabled = true; // Enable zoom on planet selection
+
+        let currentX = 550;
+        let currentY = 120;
+        let currentRotation = 0;
+        let isTraveling = false;
+        let activeOrbitPlanet = null;
+        let orbitStartTime = null;
+        let orbitRadius = 34;
+        let travelStartTime = null;
+        let travelDuration = 700;
+        let travelFrom = { x: currentX, y: currentY };
+        let travelTo = { x: currentX, y: currentY };
+        let travelTargetPlanet = null;
+        let orbitAnimationId = null;
+        let travelAnimationId = null;
+        let zoomAnimationId = null;
+        let currentTooltipPlanet = null;
+        let selectedPlanetId = null;
+
+        function getToken() {
+            return document.querySelector('#af-form input[name="__RequestVerificationToken"]')?.value || '';
+        }
+
+        function setActionState(enabled) {
+            const disabled = !enabled || !isAuthenticated;
+            taskMinutesInput.disabled = disabled;
+            startSessionButton.disabled = disabled;
+
+            if (!isAuthenticated) {
+                actionsNote.textContent = 'Log in to start the timer.';
+            } else if (!enabled) {
+                actionsNote.textContent = 'Select a planet to enable the timer.';
+            } else {
+                actionsNote.textContent = '';
+            }
+        }
+        function getOrbitRotationRad() {
+            const transform = window.getComputedStyle(planetsOrbit).transform;
+            if (!transform || transform === 'none') return 0;
+
+            const match = transform.match(/matrix\(([^)]+)\)/);
+            if (!match || !match[1]) return 0;
+
+            const values = match[1].split(',').map(v => parseFloat(v.trim()));
+            if (values.length < 2) return 0;
+
+            return Math.atan2(values[1], values[0]);
         }
 
         function getActualPlanetPosition(planet) {
-            const cx = parseFloat(planet.dataset.cx);
-            const cy = parseFloat(planet.dataset.cy);
-            const orbitRotation = getOrbitRotation() * Math.PI / 180;
-            const centerX = 510;
-            const centerY = 360;
-            
+            const cx = parseFloat(planet.dataset.cx || '0');
+            const cy = parseFloat(planet.dataset.cy || '0');
+            const orbitRotation = getOrbitRotationRad();
+
             const dx = cx - centerX;
             const dy = cy - centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             const angle = Math.atan2(dy, dx) + orbitRotation;
-            
-            const newCx = centerX + distance * Math.cos(angle);
-            const newCy = centerY + distance * Math.sin(angle);
-            
-            return { x: newCx, y: newCy };
+
+            return {
+                x: centerX + distance * Math.cos(angle),
+                y: centerY + distance * Math.sin(angle)
+            };
         }
 
-        function updateRocketRotation(targetX, targetY) {
-            const dx = targetX - currentX;
-            const dy = targetY - currentY;
-            const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-            currentRotation = angle;
-            rocket.setAttribute('transform', `translate(${currentX}, ${currentY}) rotate(${angle})`);
+        function getOrbitRadius(planet) {
+            const radiusFromData = parseFloat(planet.dataset.radius || '16');
+            return Math.max(20, radiusFromData + 18);
         }
 
-        // Generic orbit function that works for any planet
-        function orbitAroundPlanet(planet, orbitRadius = null) {
-            // Cancel any previous orbit animation
+        function getOrbitAnchor(planet) {
+            const center = getActualPlanetPosition(planet);
+            const angle = -Math.PI / 3;
+            const radius = getOrbitRadius(planet);
+
+            return {
+                x: center.x + radius * Math.cos(angle),
+                y: center.y + radius * Math.sin(angle),
+                angle
+            };
+        }
+
+        function setRocketTransform(x, y, rotation) {
+            currentX = x;
+            currentY = y;
+            currentRotation = rotation;
+            rocket.setAttribute('transform', `translate(${x}, ${y}) rotate(${rotation})`);
+        }
+
+        function setSelectedPlanet(planet) {
+            planetNodes.forEach(p => p.classList.remove('selected'));
+            planet.classList.add('selected');
+
+            const name = planet.dataset.name || 'Unknown';
+            const type = planet.dataset.type || 'Unknown';
+            const order = planet.dataset.order || '-';
+            const description = (planet.dataset.description || '').trim();
+            const distance = (planet.dataset.distance || '').trim();
+
+            infoName.textContent = `#${order} ${name}`;
+            infoType.textContent = `Type: ${type}`;
+            infoDescription.textContent = description || 'No description provided for this planet.';
+            infoDistance.textContent = distance
+                ? `Distance from previous: ${distance}`
+                : 'Distance from previous: not specified';
+
+            // Show close button when planet is selected
+            closePlanetPanel.style.display = 'block';
+            selectedPlanetId = planet.dataset.id || null;
+            planetActions.classList.remove('hidden');
+            setActionState(true);
+        }
+
+        function showTooltip(planet, event) {
+            currentTooltipPlanet = planet;
+
+            const name = planet.dataset.name || 'Unknown';
+            const type = planet.dataset.type || 'Unknown';
+            const order = planet.dataset.order || '-';
+            const description = (planet.dataset.description || '').trim() || 'No description provided.';
+            const distance = (planet.dataset.distance || '').trim();
+
+            planetTooltip.innerHTML = `
+                <strong>#${order} ${name}</strong>
+                <div>Type: ${type}</div>
+                <div>${description}</div>
+                <div class="tooltip-meta">${distance ? `Distance: ${distance}` : 'Distance: not specified'}</div>
+            `;
+            planetTooltip.style.display = 'block';
+            updateTooltipPosition(event);
+        }
+
+        function updateTooltipPosition(event) {
+            if (!currentTooltipPlanet) return;
+
+            const rect = spaceStage.getBoundingClientRect();
+            const tooltipWidth = planetTooltip.offsetWidth || 220;
+            const tooltipHeight = planetTooltip.offsetHeight || 90;
+
+            let left = event.clientX - rect.left + 16;
+            let top = event.clientY - rect.top + 16;
+
+            if (left + tooltipWidth > rect.width) left = event.clientX - rect.left - tooltipWidth - 16;
+            if (top + tooltipHeight > rect.height) top = event.clientY - rect.top - tooltipHeight - 16;
+
+            left = Math.max(10, left);
+            top = Math.max(10, top);
+
+            planetTooltip.style.left = `${left}px`;
+            planetTooltip.style.top = `${top}px`;
+        }
+
+        function hideTooltip() {
+            currentTooltipPlanet = null;
+            planetTooltip.style.display = 'none';
+        }
+
+        function stopOrbit() {
             if (orbitAnimationId !== null) {
                 cancelAnimationFrame(orbitAnimationId);
+                orbitAnimationId = null;
             }
-            
-            // Calculate orbit radius based on planet size if not provided
-            if (orbitRadius === null) {
-                if (!planet) {
-                    // Earth - get its radius from the SVG circle
-                    const earthCircle = document.querySelector('[data-name="Earth"] circle');
-                    const planetRadius = earthCircle ? parseFloat(earthCircle.getAttribute('r')) : 30;
-                    orbitRadius = planetRadius + 15; // Orbit at planet radius + 35px
-                } else {
-                    // Other planets - get radius from their circle element
-                    const planetCircle = planet.querySelector('circle');
-                    const planetRadius = planetCircle ? parseFloat(planetCircle.getAttribute('r')) : 30;
-                    orbitRadius = planetRadius + 25; // Orbit at planet radius + 35px
-                }
+        }
+
+        function stopTravel() {
+            if (travelAnimationId !== null) {
+                cancelAnimationFrame(travelAnimationId);
+                travelAnimationId = null;
             }
-            
-            const orbitDuration = 2000; // 2 seconds per orbit
+        }
+
+        function stopZoom() {
+            if (zoomAnimationId !== null) {
+                cancelAnimationFrame(zoomAnimationId);
+                zoomAnimationId = null;
+            }
+        }
+
+        function setViewBox(box) {
+            svgElement.setAttribute(
+                'viewBox',
+                `${box.x.toFixed(2)} ${box.y.toFixed(2)} ${box.width.toFixed(2)} ${box.height.toFixed(2)}`
+            );
+        }
+
+        function animateZoomToPlanet(planet) {
+            stopZoom();
+
+            const center = getActualPlanetPosition(planet);
+            const planetRadius = getOrbitRadius(planet);
+            const targetWidth = Math.max(360, planetRadius * 7.2);
+            const targetHeight = Math.max(320, planetRadius * 5.8);
+
+            const maxX = Math.max(0, 1020 - targetWidth);
+            const maxY = Math.max(0, 820 - targetHeight);
+
+            const target = {
+                x: Math.min(Math.max(0, center.x - targetWidth / 2), maxX),
+                y: Math.min(Math.max(0, center.y - targetHeight / 2), maxY),
+                width: targetWidth,
+                height: targetHeight
+            };
+
+            const start = { ...defaultViewBox };
+            const duration = 900;
             let startTime = null;
-            
-            function animateOrbit(currentTime) {
-                if (!startTime) {
-                    startTime = currentTime;
+
+            function easeInOut(t) {
+                return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            }
+
+            function step(now) {
+                if (!startTime) startTime = now;
+
+                const progress = Math.min((now - startTime) / duration, 1);
+                const eased = easeInOut(progress);
+                const box = {
+                    x: start.x + (target.x - start.x) * eased,
+                    y: start.y + (target.y - start.y) * eased,
+                    width: start.width + (target.width - start.width) * eased,
+                    height: start.height + (target.height - start.height) * eased
+                };
+
+                setViewBox(box);
+
+                if (progress < 1) {
+                    zoomAnimationId = requestAnimationFrame(step);
+                    return;
                 }
-                
-                // If not animating to another planet, update rocket position
-                if (!isAnimating) {
-                    const elapsed = currentTime - startTime;
-                    const progress = (elapsed % orbitDuration) / orbitDuration; // Loop indefinitely
-                    
-                    // Get the planet's current position (accounting for its own orbit)
-                    const planetPos = planet ? getActualPlanetPosition(planet) : { x: 510, y: 120 };
-                    const centerX = planetPos.x;
-                    const centerY = planetPos.y;
-                    
+
+                zoomAnimationId = null;
+            }
+
+            zoomAnimationId = requestAnimationFrame(step);
+        }
+
+        function resetZoom() {
+            stopZoom();
+            setViewBox(defaultViewBox);
+        }
+
+        function animateTravelToPlanet(planet) {
+            stopTravel();
+            stopOrbit();
+            resetZoom();
+
+            isTraveling = true;
+            travelTargetPlanet = planet;
+            travelStartTime = null;
+            travelFrom = { x: currentX, y: currentY };
+
+            const anchor = getOrbitAnchor(planet);
+            travelTo = { x: anchor.x, y: anchor.y };
+
+            const dx = travelTo.x - travelFrom.x;
+            const dy = travelTo.y - travelFrom.y;
+            const heading = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+
+            function step(now) {
+                if (!travelStartTime) travelStartTime = now;
+
+                const progress = Math.min((now - travelStartTime) / travelDuration, 1);
+                const eased = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const x = travelFrom.x + (travelTo.x - travelFrom.x) * eased;
+                const y = travelFrom.y + (travelTo.y - travelFrom.y) * eased;
+                const rotation = Math.atan2(y - currentY, x - currentX) * 180 / Math.PI + 90;
+                setRocketTransform(x, y, Number.isFinite(rotation) ? rotation : heading);
+
+                if (progress < 1) {
+                    travelAnimationId = requestAnimationFrame(step);
+                    return;
+                }
+
+                travelAnimationId = null;
+                isTraveling = false;
+                activeOrbitPlanet = travelTargetPlanet;
+                orbitRadius = getOrbitRadius(activeOrbitPlanet);
+                orbitStartTime = null;
+                if (zoomEnabled) {
+                    animateZoomToPlanet(activeOrbitPlanet);
+                }
+
+                // Start orbiting immediately after arrival
+                startOrbitLoop();
+            }
+
+            travelAnimationId = requestAnimationFrame(step);
+        }
+
+        function startOrbitLoop() {
+            stopOrbit();
+
+            const orbitDuration = 2600;
+            let lastFrameTime = null;
+
+            function animateOrbit(now) {
+                if (!activeOrbitPlanet) {
+                    orbitAnimationId = null;
+                    return;
+                }
+
+                // Initialize timing on first frame
+                if (!orbitStartTime) {
+                    orbitStartTime = now;
+                }
+
+                // Only animate orbit if we're not traveling
+                if (!isTraveling) {
+                    const elapsed = now - orbitStartTime;
+                    const progress = (elapsed % orbitDuration) / orbitDuration;
                     const angle = progress * Math.PI * 2;
-                    const orbitX = centerX + orbitRadius * Math.cos(angle);
-                    const orbitY = centerY + orbitRadius * Math.sin(angle);
                     
-                    // Get next position to calculate movement direction
-                    const nextAngle = angle + 0.01;
-                    const nextX = centerX + orbitRadius * Math.cos(nextAngle);
-                    const nextY = centerY + orbitRadius * Math.sin(nextAngle);
+                    const center = getActualPlanetPosition(activeOrbitPlanet);
+                    const x = center.x + orbitRadius * Math.cos(angle);
+                    const y = center.y + orbitRadius * Math.sin(angle);
                     
-                    const dx = nextX - orbitX;
-                    const dy = nextY - orbitY;
-                    const rocketAngle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+                    const nextAngle = angle + 0.03;
+                    const nx = center.x + orbitRadius * Math.cos(nextAngle);
+                    const ny = center.y + orbitRadius * Math.sin(nextAngle);
                     
-                    currentX = orbitX;
-                    currentY = orbitY;
-                    currentRotation = rocketAngle;
-                    
-                    rocket.setAttribute('transform', `translate(${orbitX}, ${orbitY}) rotate(${rocketAngle})`);
+                    const heading = Math.atan2(ny - y, nx - x) * 180 / Math.PI + 90;
+                    setRocketTransform(x, y, Number.isFinite(heading) ? heading : 0);
                 }
-                
-                // Always continue the animation loop
+
                 orbitAnimationId = requestAnimationFrame(animateOrbit);
             }
-            
+
             orbitAnimationId = requestAnimationFrame(animateOrbit);
         }
 
-        // Start initial orbit around Earth (null = Earth)
-        orbitAroundPlanet(null);
+        function selectPlanet(planet) {
+            setSelectedPlanet(planet);
+            animateTravelToPlanet(planet);
+        }
 
-        document.querySelectorAll('.planet').forEach(planet => {
-            planet.style.cursor = 'pointer';
-            let currentAnimation = null;
+        function hidePlanetPanel() {
+            planetNodes.forEach(p => p.classList.remove('selected'));
+            closePlanetPanel.style.display = 'none';
+            selectedPlanetId = null;
+            setActionState(false);
+            planetActions.classList.add('hidden');
+            infoName.textContent = 'Choose a Planet';
+            infoType.textContent = 'Click any planet to inspect it.';
+            infoDescription.textContent = 'The rocket will fly to the selected planet and start circling around it.';
+            infoDistance.textContent = '';
+            resetZoom();
+        }
 
-            planet.addEventListener('mouseenter', () => {
-                if (isAnimating) return;
-                
-                isAnimating = true;
-                const actualPos = getActualPlanetPosition(planet);
-                const cx = actualPos.x;
-                const cy = actualPos.y;
+        // Close panel button
+        closePlanetPanel.addEventListener('click', hidePlanetPanel);
 
-                // Calculate angle to planet
-                const dx = cx - currentX;
-                const dy = cy - currentY;
-                const targetAngle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+        function getSelectedPlanetInfo() {
+            if (!selectedPlanetId) return null;
 
-                // Cancel previous animation if exists
-                if (currentAnimation) {
-                    currentAnimation.cancel();
-                }
+            const node = planetNodes.find(p => p.dataset.id === String(selectedPlanetId));
+            if (!node) return null;
 
-                currentAnimation = rocket.animate([
-                    { transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)` },
-                    { transform: `translate(${cx}px, ${cy}px) rotate(${targetAngle}deg)` }
-                ], {
-                    duration: 800,
-                    easing: 'ease-in-out',
-                    fill: 'none' // Don't keep animation applied
-                });
+            return {
+                id: node.dataset.id || '',
+                name: node.dataset.name || '',
+                type: node.dataset.type || '',
+                description: (node.dataset.description || '').trim(),
+                distance: (node.dataset.distance || '').trim()
+            };
+        }
 
-                currentAnimation.onfinish = () => {
-                    currentX = cx;
-                    currentY = cy;
-                    currentRotation = targetAngle;
-                    rocket.setAttribute('transform', `translate(${cx}, ${cy}) rotate(${targetAngle})`);
-                    currentTargetPlanet = planet;
-                    isAnimating = false;
-                    // Start orbiting the new planet
-                    orbitAroundPlanet(planet);
-                };
+        function storeActiveSessionPlanetInfo(sessionId, planetInfo) {
+            if (!sessionId || !planetInfo) return;
+
+            const payload = {
+                sessionId: String(sessionId),
+                planetInfo,
+                storedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('activeSessionPlanet', JSON.stringify(payload));
+        }
+
+        async function openActiveSession() {
+            const res = await fetch('/Session/GetActiveSession');
+            if (!res.ok) return false;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.hasActive || !data.sessionId) return false;
+
+            if (data.taskId) {
+                setSelectedTaskById(data.taskId, data.label || '');
+            } else {
+                clearTaskSelection();
+            }
+
+            const plannedSeconds = Number(data.plannedSeconds || 0);
+            const remainingSeconds = Number(data.remainingSeconds || 0);
+            const minutes = plannedSeconds > 0 ? Math.ceil(plannedSeconds / 60) : 25;
+
+            await startTimer({
+                minutes,
+                sessionId: data.sessionId,
+                label: data.label || '',
+                plannedSeconds,
+                remainingSeconds,
+                taskId: data.taskId || null
+            });
+            return true;
+        }
+
+        async function startSessionFromPanel() {
+            if (!selectedPlanetId) return;
+
+            const minutes = parseInt(taskMinutesInput.value, 10) || 25;
+
+            actionsNote.textContent = 'Opening timer...';
+
+            const planetInfo = getSelectedPlanetInfo();
+            openFocusModal();
+            await startTimer({
+                minutes,
+                planetInfo
             });
 
+            actionsNote.textContent = '';
+        }
 
+        startSessionButton.addEventListener('click', startSessionFromPanel);
+        setActionState(false);
+
+        planetNodes.forEach(planet => {
+            planet.addEventListener('click', () => selectPlanet(planet));
+            planet.addEventListener('mouseenter', event => showTooltip(planet, event));
+            planet.addEventListener('mousemove', event => updateTooltipPosition(event));
+            planet.addEventListener('mouseleave', hideTooltip);
+            planet.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectPlanet(planet);
+                }
+            });
         });
+
+        const initialPlanet =
+            planetNodes.find(p => (p.dataset.name || '').toLowerCase() === 'earth') ||
+            planetNodes[0] ||
+            null;
+
+        if (initialPlanet) {
+            setSelectedPlanet(initialPlanet);
+            const initialPos = getActualPlanetPosition(initialPlanet);
+            activeOrbitPlanet = initialPlanet;
+            orbitRadius = getOrbitRadius(initialPlanet);
+            setRocketTransform(initialPos.x + orbitRadius, initialPos.y, 90);
+            resetZoom();
+            startOrbitLoop();
+        }
+
+        const focusModal = document.getElementById('focusModal');
+        const focusModalClose = document.getElementById('focusModalClose');
+        const startTimerBtn = document.getElementById('startTimerBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+        const cancelBackBtn = document.getElementById('cancelBackBtn');
+        const resetTimerBtn = document.getElementById('resetTimerBtn');
+
+        const taskListEl = document.getElementById('taskList');
+        const taskEmptyEl = document.getElementById('taskEmpty');
+        const taskSearchInput = document.getElementById('taskSearchInput');
+        const refreshTasksBtn = document.getElementById('refreshTasksBtn');
+        const clearTaskSelectionBtn = document.getElementById('clearTaskSelectionBtn');
+        const selectedTaskDisplay = document.getElementById('selectedTaskDisplay');
+        const taskBindingStatus = document.getElementById('taskBindingStatus');
+        const newTaskTitle = document.getElementById('newTaskTitle');
+        const newTaskDescription = document.getElementById('newTaskDescription');
+        const createTaskBtn = document.getElementById('createTaskBtn');
+        const taskCreateNote = document.getElementById('taskCreateNote');
+
+        const planetInfoCard = document.getElementById('planetInfoCard');
+        const planetInfoName = document.getElementById('planetInfoName');
+        const planetInfoType = document.getElementById('planetInfoType');
+        const planetInfoDescription = document.getElementById('planetInfoDescription');
+        const planetInfoDistance = document.getElementById('planetInfoDistance');
+
+        const minutesInput = document.getElementById('minutesInput');
+        const activeTaskLabel = document.getElementById('activeTaskLabel');
+
+        let allTasks = [];
+        let selectedTaskId = null;
+        let selectedTaskTitle = '';
+
+        let intervalId = null;
+        let secondsLeft = 0;
+        let totalSeconds = 0;
+        let currentSessionId = null;
+        let isPaused = false;
+
+        function openFocusModal() {
+            if (!focusModal) return;
+            focusModal.classList.add('active');
+            focusModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('focus-open');
+            loadTasks();
+            updateSelectedTaskDisplay();
+        }
+
+        function closeFocusModal() {
+            if (!focusModal) return;
+            focusModal.classList.remove('active');
+            focusModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('focus-open');
+        }
+
+        function updateSelectedTaskDisplay() {
+            if (!selectedTaskDisplay) return;
+            const boundLabel = selectedTaskTitle
+                ? `Bound task: ${selectedTaskTitle}`
+                : 'Bound task: None';
+
+            selectedTaskDisplay.textContent = boundLabel;
+            if (taskBindingStatus) taskBindingStatus.textContent = boundLabel;
+
+            if (!currentSessionId) {
+                activeTaskLabel.textContent = selectedTaskTitle
+                    ? `Bound task: ${selectedTaskTitle}`
+                    : 'No task bound';
+            }
+        }
+
+        function clearTaskSelection() {
+            selectedTaskId = null;
+            selectedTaskTitle = '';
+            updateSelectedTaskDisplay();
+            renderTasks();
+        }
+
+        function setSelectedTaskById(taskId, title) {
+            selectedTaskId = taskId;
+            selectedTaskTitle = title || '';
+            updateSelectedTaskDisplay();
+            renderTasks();
+        }
+
+        function selectTask(task) {
+            selectedTaskId = task.id;
+            selectedTaskTitle = task.title;
+            updateSelectedTaskDisplay();
+            renderTasks();
+        }
+
+        function renderTasks() {
+            if (!taskListEl || !taskSearchInput) return;
+
+            const term = taskSearchInput.value.trim().toLowerCase();
+            const filtered = allTasks.filter(t => {
+                const title = (t.title || '').toLowerCase();
+                const desc = (t.description || '').toLowerCase();
+                return !term || title.includes(term) || desc.includes(term);
+            });
+
+            if (!filtered.length) {
+                taskListEl.innerHTML = '';
+                taskEmptyEl.style.display = 'block';
+                return;
+            }
+
+            taskEmptyEl.style.display = 'none';
+            taskListEl.innerHTML = filtered.map(t => {
+                const selectedClass = t.id === selectedTaskId ? ' selected' : '';
+                const desc = t.description ? escapeHtml(t.description) : 'No description';
+                const boundBadge = t.id === selectedTaskId ? '<div class="task-bound">Bound to timer</div>' : '';
+                return `
+                    <div class="task-item${selectedClass}" data-id="${t.id}">
+                        <div class="task-header">
+                            <div class="task-title">${escapeHtml(t.title)}</div>
+                            <button class="task-delete-btn" data-id="${t.id}" type="button">Delete</button>
+                        </div>
+                        <div class="task-description">${desc}</div>
+                        ${boundBadge}
+                    </div>`;
+            }).join('');
+
+            taskListEl.querySelectorAll('.task-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const id = parseInt(el.dataset.id || '0', 10);
+                    const task = allTasks.find(t => t.id === id);
+                    if (task) selectTask(task);
+                });
+            });
+
+            taskListEl.querySelectorAll('.task-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const id = parseInt(btn.dataset.id || '0', 10);
+                    if (id) deleteTaskById(id);
+                });
+            });
+        }
+
+        async function loadTasks() {
+            if (!taskListEl || !taskEmptyEl) return;
+
+            if (!isAuthenticated) {
+                allTasks = [];
+                taskListEl.innerHTML = '';
+                taskEmptyEl.textContent = 'Log in to manage tasks.';
+                taskEmptyEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/Tasks/GetUserTasks');
+                if (!res.ok) throw new Error('Failed to load tasks');
+                allTasks = await res.json();
+                renderTasks();
+            } catch {
+                taskListEl.innerHTML = '';
+                taskEmptyEl.textContent = 'Could not load tasks.';
+                taskEmptyEl.style.display = 'block';
+            }
+        }
+
+        async function createTask() {
+            if (!isAuthenticated) return;
+            const title = (newTaskTitle?.value || '').trim();
+            const description = (newTaskDescription?.value || '').trim();
+
+            if (!title) {
+                taskCreateNote.textContent = 'Title is required.';
+                return;
+            }
+
+            taskCreateNote.textContent = 'Creating task...';
+
+            const res = await fetch('/Tasks/CreateJson', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({
+                    title,
+                    description: description || null
+                })
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                taskCreateNote.textContent = data?.message || 'Could not create task.';
+                return;
+            }
+
+            newTaskTitle.value = '';
+            newTaskDescription.value = '';
+            taskCreateNote.textContent = 'Task created.';
+            await loadTasks();
+            if (data?.id) setSelectedTaskById(data.id, title);
+        }
+
+        async function deleteTaskById(taskId) {
+            if (!isAuthenticated) return;
+            if (!confirm('Delete this task?')) return;
+
+            const res = await fetch('/Tasks/DeleteJson', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({ id: taskId })
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                alert(data?.message || 'Could not delete task.');
+                return;
+            }
+
+            if (selectedTaskId === taskId) {
+                clearTaskSelection();
+            }
+
+            await loadTasks();
+        }
+
+        function getPlanetInfoFromParams(params) {
+            const name = params.get('planetName');
+            const type = params.get('planetType');
+            const description = params.get('planetDescription');
+            const distance = params.get('planetDistance');
+
+            if (!name && !type && !description && !distance) return null;
+
+            return {
+                name: name ? decodeURIComponent(name) : '',
+                type: type ? decodeURIComponent(type) : '',
+                description: description ? decodeURIComponent(description) : '',
+                distance: distance ? decodeURIComponent(distance) : ''
+            };
+        }
+
+        function loadPlanetInfoForSession(sessionId) {
+            if (!sessionId) return null;
+
+            const raw = localStorage.getItem('activeSessionPlanet');
+            if (!raw) return null;
+
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.sessionId === String(sessionId)) return parsed.planetInfo;
+            } catch {
+                return null;
+            }
+
+            return null;
+        }
+
+        function clearPlanetInfoForSession(sessionId) {
+            if (!sessionId) return;
+
+            const raw = localStorage.getItem('activeSessionPlanet');
+            if (!raw) return;
+
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.sessionId === String(sessionId)) {
+                    localStorage.removeItem('activeSessionPlanet');
+                }
+            } catch {
+            }
+        }
+
+        function applyPlanetInfo(info) {
+            if (!planetInfoCard) return;
+
+            if (!info || !(info.name || info.type || info.description || info.distance)) {
+                planetInfoCard.style.display = 'none';
+                return;
+            }
+
+            planetInfoName.textContent = info.name || 'Planet';
+            planetInfoType.textContent = info.type ? `Type: ${info.type}` : '';
+            planetInfoDescription.textContent = info.description || '';
+            planetInfoDistance.textContent = info.distance ? `Distance: ${info.distance}` : '';
+            planetInfoCard.style.display = 'block';
+        }
+
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.textContent = message;
+            el.style.display = 'block';
+        }
+
+        function hideError(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.textContent = '';
+            el.style.display = 'none';
+        }
+
+        async function startTimer(options = {}) {
+            hideError('inputError');
+            hideError('startError');
+
+            if (!isAuthenticated) {
+                showError('startError', 'Log in to start the timer.');
+                return;
+            }
+
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+
+            const plannedSecondsOption = Number.isFinite(options.plannedSeconds) && options.plannedSeconds > 0
+                ? options.plannedSeconds
+                : null;
+            const minutes = Number.isFinite(options.minutes) && options.minutes > 0
+                ? options.minutes
+                : (plannedSecondsOption ? Math.ceil(plannedSecondsOption / 60) : parseInt(minutesInput.value, 10));
+            if (!minutes || minutes < 1) {
+                showError('inputError', 'Please enter a valid number of minutes.');
+                return;
+            }
+
+            const plannedSeconds = plannedSecondsOption ?? (minutes * 60);
+            const remainingSeconds = Number.isFinite(options.remainingSeconds) && options.remainingSeconds >= 0
+                ? Math.min(options.remainingSeconds, plannedSeconds)
+                : plannedSeconds;
+            minutesInput.value = Math.ceil(plannedSeconds / 60);
+
+            const providedSessionId = options.sessionId ? parseInt(options.sessionId, 10) : null;
+            const taskId = options.taskId ?? selectedTaskId ?? null;
+            const label = options.label || selectedTaskTitle || '';
+
+            if (taskId && label) setSelectedTaskById(taskId, label);
+
+            if (!providedSessionId) {
+                const payload = {
+                    taskId,
+                    plannedMinutes: minutes
+                };
+
+                let res = await fetch('/Session/Start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 409) {
+                    const replaceExisting = confirm('An active session already exists. Click OK to close it and start a new one, or Cancel to open the active session.');
+                    if (replaceExisting) {
+                        res = await fetch('/Session/Start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...payload,
+                                closeExisting: true
+                            })
+                        });
+                    } else {
+                        const opened = await openActiveSession();
+                        if (!opened) showError('startError', 'Active session not found.');
+                        return;
+                    }
+                }
+
+                if (!res.ok) {
+                    const errText = await res.text().catch(() => '');
+                    console.error('Start session failed:', res.status, errText);
+                    showError('startError', 'Failed to start session. Please try again.');
+                    return;
+                }
+
+                const data = await res.json();
+                currentSessionId = data.sessionId;
+            } else {
+                currentSessionId = providedSessionId;
+            }
+
+            if (options.planetInfo) {
+                storeActiveSessionPlanetInfo(currentSessionId, options.planetInfo);
+            }
+
+            applyPlanetInfo(loadPlanetInfoForSession(currentSessionId));
+
+            totalSeconds = plannedSeconds;
+            secondsLeft = remainingSeconds;
+            isPaused = false;
+
+            const boundLabel = label || selectedTaskTitle;
+            activeTaskLabel.textContent = boundLabel
+                ? `Bound task: ${boundLabel}`
+                : 'No task bound';
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('timerDisplay').style.display = 'block';
+            document.getElementById('doneMessage').style.display = 'none';
+            updateDisplay();
+
+            if (secondsLeft <= 0) {
+                await finishTimer(true);
+                return;
+            }
+
+            intervalId = setInterval(() => {
+                secondsLeft--;
+                updateDisplay();
+                if (secondsLeft <= 0) finishTimer(true);
+            }, 1000);
+        }
+
+        async function togglePause() {
+            if (!currentSessionId) return;
+
+            if (!isPaused) {
+                clearInterval(intervalId);
+                intervalId = null;
+                isPaused = true;
+                pauseBtn.textContent = 'Resume';
+
+                await fetch('/Session/Pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentSessionId)
+                });
+            } else {
+                isPaused = false;
+                pauseBtn.textContent = 'Pause';
+
+                await fetch('/Session/Resume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentSessionId)
+                });
+
+                intervalId = setInterval(() => {
+                    secondsLeft--;
+                    updateDisplay();
+                    if (secondsLeft <= 0) finishTimer(true);
+                }, 1000);
+            }
+        }
+
+        function updateDisplay() {
+            const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+            const s = String(secondsLeft % 60).padStart(2, '0');
+            document.getElementById('timeLeft').textContent = `${m}:${s}`;
+        }
+
+        async function finishTimer(completed) {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+
+            hideCancelConfirm();
+
+            if (!currentSessionId) {
+                resetTimer();
+                return;
+            }
+
+            await fetch('/Session/Complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: currentSessionId,
+                    status: completed ? 'Completed' : 'Aborted',
+                    endTime: new Date().toISOString(),
+                    actualDuration: formatDuration(totalSeconds - secondsLeft)
+                })
+            });
+
+            if (completed && selectedTaskId) {
+                await loadTasks();
+                clearTaskSelection();
+            }
+
+            clearPlanetInfoForSession(currentSessionId);
+            applyPlanetInfo(null);
+
+            document.getElementById('timerDisplay').style.display = 'none';
+            if (completed) {
+                document.getElementById('doneMessage').style.display = 'block';
+            } else {
+                resetTimer();
+            }
+        }
+
+        function cancelTimer() {
+            document.getElementById('cancelConfirm').style.display = 'block';
+        }
+
+        function hideCancelConfirm() {
+            document.getElementById('cancelConfirm').style.display = 'none';
+        }
+
+        function resetTimer() {
+            currentSessionId = null;
+            isPaused = false;
+            document.getElementById('doneMessage').style.display = 'none';
+            document.getElementById('timerDisplay').style.display = 'none';
+            document.getElementById('setup').style.display = 'block';
+            applyPlanetInfo(null);
+            updateSelectedTaskDisplay();
+        }
+
+        function formatDuration(seconds) {
+            const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function openFocusFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const shouldOpen = params.get('focus') === '1' || params.get('autostart') === '1' || params.get('sessionId');
+            if (!shouldOpen) return;
+
+            openFocusModal();
+
+            const sessionIdParam = params.get('sessionId');
+            if (sessionIdParam) {
+                const minutesParam = parseInt(params.get('minutes') || '', 10);
+                const plannedSecondsParam = parseInt(params.get('plannedSeconds') || '', 10);
+                const remainingSecondsParam = parseInt(params.get('remainingSeconds') || '', 10);
+                const labelParam = params.get('label');
+                const planetInfoFromParams = getPlanetInfoFromParams(params);
+
+                const plannedSeconds = Number.isFinite(plannedSecondsParam) && plannedSecondsParam > 0
+                    ? plannedSecondsParam
+                    : null;
+                const remainingSeconds = Number.isFinite(remainingSecondsParam) && remainingSecondsParam >= 0
+                    ? remainingSecondsParam
+                    : null;
+                const minutes = Number.isFinite(minutesParam) && minutesParam > 0
+                    ? minutesParam
+                    : (plannedSeconds ? Math.ceil(plannedSeconds / 60) : 25);
+                const label = labelParam ? decodeURIComponent(labelParam) : '';
+
+                startTimer({
+                    minutes,
+                    sessionId: sessionIdParam,
+                    label,
+                    plannedSeconds,
+                    remainingSeconds,
+                    planetInfo: planetInfoFromParams
+                });
+                return;
+            }
+
+            openActiveSession();
+        }
+
+        if (focusModalClose) {
+            focusModalClose.addEventListener('click', closeFocusModal);
+        }
+
+        if (focusModal) {
+            focusModal.addEventListener('click', (event) => {
+                if (event.target === focusModal) closeFocusModal();
+            });
+        }
+
+        if (startTimerBtn) startTimerBtn.addEventListener('click', () => startTimer());
+        if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
+        if (cancelBtn) cancelBtn.addEventListener('click', cancelTimer);
+        if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', () => finishTimer(false));
+        if (cancelBackBtn) cancelBackBtn.addEventListener('click', hideCancelConfirm);
+        if (resetTimerBtn) resetTimerBtn.addEventListener('click', resetTimer);
+
+        if (taskSearchInput) taskSearchInput.addEventListener('input', renderTasks);
+        if (refreshTasksBtn) refreshTasksBtn.addEventListener('click', loadTasks);
+        if (clearTaskSelectionBtn) clearTaskSelectionBtn.addEventListener('click', clearTaskSelection);
+        if (createTaskBtn) createTaskBtn.addEventListener('click', createTask);
+
+        if (!isAuthenticated) {
+            if (startTimerBtn) startTimerBtn.disabled = true;
+            if (createTaskBtn) createTaskBtn.disabled = true;
+        }
+
+        const openFocusTimerBtn = document.getElementById('openFocusTimerBtn');
+        if (openFocusTimerBtn) {
+            openFocusTimerBtn.addEventListener('click', async (event) => {
+                event.preventDefault();
+                openFocusModal();
+                await openActiveSession();
+            });
+        }
+
+        openFocusFromQuery();
     </script>
 }

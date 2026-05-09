@@ -31,11 +31,12 @@ namespace FocusSpace.Tests.Controllers
                 new Mock<ILogger<UserManager<User>>>().Object).Object;
         }
 
-        private static SessionController CreateController(Mock<ISessionService>? serviceMock = null, UserManager<User>? userManager = null)
+        private static SessionController CreateController(Mock<ISessionService>? serviceMock = null, UserManager<User>? userManager = null, Mock<ITaskService>? taskServiceMock = null)
         {
             serviceMock ??= new Mock<ISessionService>();
             userManager ??= CreateUserManager();
-            return new SessionController(serviceMock.Object, userManager);
+            taskServiceMock ??= new Mock<ITaskService>();
+            return new SessionController(serviceMock.Object, userManager, taskServiceMock.Object);
         }
 
         // ═════════════════════════════════════════════════════════════

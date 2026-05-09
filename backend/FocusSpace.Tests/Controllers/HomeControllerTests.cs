@@ -1,4 +1,6 @@
 using FocusSpace.Api.Controllers;
+using FocusSpace.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
@@ -9,14 +11,33 @@ namespace FocusSpace.Tests.Controllers
     /// </summary>
     public class HomeControllerTests
     {
+        private static HomeController CreateController()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+
+            var context = new AppDbContext(options);
+            context.Planets.Add(new FocusSpace.Domain.Entities.Planet
+            {
+                Id = 3,
+                Name = "Earth",
+                OrderNumber = 3,
+                Description = "Our home planet"
+            });
+            context.SaveChanges();
+
+            return new HomeController(context);
+        }
+
         [Fact]
-        public void Index_ReturnsView_WithCorrectViewName()
+        public async Task Index_ReturnsView_WithCorrectViewName()
         {
             // Arrange
-            var controller = new HomeController();
+            var controller = CreateController();
 
             // Act
-            var result = controller.Index();
+            var result = await controller.Index();
 
             // Assert
             var viewResult = Assert.IsType<ViewResult>(result);
@@ -24,13 +45,13 @@ namespace FocusSpace.Tests.Controllers
         }
 
         [Fact]
-        public void Index_ReturnsViewResultType_IsIActionResult()
+        public async Task Index_ReturnsViewResultType_IsIActionResult()
         {
             // Arrange
-            var controller = new HomeController();
+            var controller = CreateController();
 
             // Act
-            var result = controller.Index();
+            var result = await controller.Index();
 
             // Assert
             Assert.IsAssignableFrom<IActionResult>(result);
@@ -40,7 +61,7 @@ namespace FocusSpace.Tests.Controllers
         public void HomeController_CanBeInstantiated_Successfully()
         {
             // Act
-            var controller = new HomeController();
+            var controller = CreateController();
 
             // Assert
             Assert.NotNull(controller);

@@ -77,6 +77,8 @@ namespace FocusSpace.Application.Services
                 UserId      = dto.UserId,
                 Title       = dto.Title.Trim(),
                 Description = dto.Description?.Trim(),
+                PlanetId = dto.PlanetId,
+                PlannedDuration = dto.PlannedDuration,
                 Priority    = dto.Priority,
                 CreatedAt   = DateTime.UtcNow,
                 UpdatedAt   = DateTime.UtcNow

@@ -1,11 +1,13 @@
 using FocusSpace.Api.Controllers;
 using FocusSpace.Application.DTOs;
 using FocusSpace.Application.Interfaces;
+using FocusSpace.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -57,12 +59,30 @@ namespace FocusSpace.Tests.Controllers
             UserManager<User>? userManager = null,
             SignInManager<User>? signInManager = null,
             IEmailService? emailService = null,
+            AppDbContext? context = null,
             IWebHostEnvironment? webHostEnvironment = null,
             ILogger<AccountController>? logger = null)
         {
             userManager ??= CreateUserManager();
             signInManager ??= CreateSignInManager(userManager);
             emailService ??= new Mock<IEmailService>().Object;
+
+            if (context == null)
+            {
+                var options = new DbContextOptionsBuilder<AppDbContext>()
+                    .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                    .Options;
+
+                context = new AppDbContext(options);
+                context.Planets.Add(new FocusSpace.Domain.Entities.Planet
+                {
+                    Id = 3,
+                    Name = "Earth",
+                    OrderNumber = 3,
+                    Description = "Our home planet"
+                });
+                context.SaveChanges();
+            }
             
             // Set up IWebHostEnvironment properly
             if (webHostEnvironment == null)
@@ -78,6 +98,7 @@ namespace FocusSpace.Tests.Controllers
                 userManager,
                 signInManager,
                 emailService,
+                context,
                 webHostEnvironment,
                 logger);
 

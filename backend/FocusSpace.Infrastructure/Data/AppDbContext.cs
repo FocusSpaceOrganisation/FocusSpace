@@ -58,6 +58,11 @@ namespace FocusSpace.Infrastructure.Data
                       .WithMany(u => u.Tasks)
                       .HasForeignKey(t => t.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(t => t.Planet)
+                      .WithMany()
+                      .HasForeignKey(t => t.PlanetId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
 
             // ── Session ───────────────────────────────────────────────

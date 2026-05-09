@@ -61,6 +61,58 @@
     .user-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: 12px; }
     .btn-small { padding: 7px 11px; font-size: 12px; }
     .loading { text-align: center; padding: 50px; color: #999; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 12px; color: #aaa; text-transform: uppercase; letter-spacing: 0.7px; }
+    .form-group input, .form-group textarea {
+        background-color: #2a2a2a;
+        color: #e0e0e0;
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 14px;
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .planet-list { margin-top: 14px; }
+    .planet-item {
+        background-color: #252525;
+        border-left: 4px solid #2196f3;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .planet-name { font-weight: bold; color: #fff; }
+    .planet-meta { color: #999; font-size: 12px; margin-top: 5px; }
+    .planet-description { color: #c7c7c7; font-size: 13px; margin-top: 6px; }
+
+    .session-list { margin-top: 6px; }
+    .session-item {
+        background-color: #252525;
+        border-left: 4px solid #ff9800;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .session-title { font-weight: bold; color: #e0e0e0; font-size: 14px; }
+    .session-meta { color: #999; font-size: 12px; margin-top: 4px; }
+    .session-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .session-badge { display: inline-block; padding: 4px 8px; border-radius: 5px; font-size: 11px; font-weight: bold; }
+    .status-ongoing { background-color: #1565c0; color: #fff; }
+    .status-paused { background-color: #f57c00; color: #000; }
+
+    @@media (max-width: 768px) {
+        .form-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
 <div class="container">
@@ -79,13 +131,17 @@
             <h3>Active Tasks</h3>
             <div class="number">@ViewBag.ActiveTasks</div>
         </div>
-        <div class="admin-card success">
+        <div class="admin-card success" onclick="openSessionsModal()">
             <h3>Active Sessions</h3>
-            <div class="number">@ViewBag.ActiveSessions</div>
+            <div class="number" id="activeSessionsCount">@ViewBag.ActiveSessions</div>
         </div>
         <div class="admin-card @(ViewBag.BlockedUsers > 0 ? "warning" : "")">
             <h3>Blocked Users</h3>
             <div class="number">@ViewBag.BlockedUsers</div>
+        </div>
+        <div class="admin-card pending" onclick="openPlanetsModal()">
+            <h3>Total Planets</h3>
+            <div class="number">@ViewBag.TotalPlanets</div>
         </div>
     </div>
 
@@ -101,6 +157,8 @@
     <h2>🔧 Management</h2>
     <div class="btn-group-admin">
         <button class="btn btn-orange" onclick="openModal('all')">Manage Users</button>
+        <button class="btn btn-success" onclick="openPlanetsModal()">Manage Planets</button>
+        <button class="btn btn-info" onclick="openSessionsModal()">Active Sessions</button>
         <button class="btn btn-info" onclick="openModal('pending')">
             Pending (@ViewBag.PendingApproval)
         </button>
@@ -131,6 +189,65 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="planetsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>🪐 Manage Planets</h2>
+            <button class="modal-close" onclick="closePlanetsModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <h3 style="margin-top:0;color:#ff9800">Add New Planet</h3>
+            <form id="planetForm" onsubmit="createPlanet(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="planetName">Name</label>
+                        <input id="planetName" name="planetName" type="text" maxlength="100" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="planetOrder">Order Number</label>
+                        <input id="planetOrder" name="planetOrder" type="number" min="1" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="planetDistance">Distance From Previous (hh:mm)</label>
+                        <input id="planetDistance" name="planetDistance" type="time" step="60" />
+                    </div>
+                    <div class="form-group">
+                        <label for="planetImageUrl">Image URL</label>
+                        <input id="planetImageUrl" name="planetImageUrl" type="url" />
+                    </div>
+                    <div class="form-group full">
+                        <label for="planetDescription">Description</label>
+                        <textarea id="planetDescription" name="planetDescription"></textarea>
+                    </div>
+                </div>
+                <button class="btn btn-success" type="submit">Add Planet</button>
+            </form>
+
+            <h3 style="margin-top:24px;color:#ff9800">Existing Planets</h3>
+            <div id="planetsContainer" class="planet-list">
+                <div class="loading">Loading…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="sessionsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Active Sessions</h2>
+            <button class="modal-close" onclick="closeSessionsModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-top:0;color:#999;font-size:13px;">
+                Closing a session will mark it as Aborted and set the end time to now.
+            </p>
+            <div id="sessionsContainer" class="session-list">
+                <div class="loading">Loading…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @* Прихований antiforgery токен для fetch-запитів *@
 <form id="af-form" style="display:none">
     @Html.AntiForgeryToken()
@@ -138,6 +255,8 @@
 
 <script>
     let allUsers = [];
+    let allPlanets = [];
+    let activeSessions = [];
     let currentTab = 'all';
 
     function getToken() {
@@ -156,6 +275,24 @@
         document.getElementById('usersModal').classList.remove('active');
     }
 
+    function openPlanetsModal() {
+        document.getElementById('planetsModal').classList.add('active');
+        loadPlanets();
+    }
+
+    function closePlanetsModal() {
+        document.getElementById('planetsModal').classList.remove('active');
+    }
+
+    function openSessionsModal() {
+        document.getElementById('sessionsModal').classList.add('active');
+        loadActiveSessions();
+    }
+
+    function closeSessionsModal() {
+        document.getElementById('sessionsModal').classList.remove('active');
+    }
+
     function setTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -170,6 +307,33 @@
             .catch(() => {
                 document.getElementById('usersContainer').innerHTML =
                     '<p style="text-align:center;color:#f44336">Error loading users.</p>';
+            });
+    }
+
+    function loadPlanets() {
+        fetch('/Admin/GetPlanets')
+            .then(r => r.json())
+            .then(planets => {
+                allPlanets = planets;
+                renderPlanets();
+            })
+            .catch(() => {
+                document.getElementById('planetsContainer').innerHTML =
+                    '<p style="text-align:center;color:#f44336">Error loading planets.</p>';
+            });
+    }
+
+    function loadActiveSessions() {
+        fetch('/Admin/GetActiveSessions')
+            .then(r => r.json())
+            .then(sessions => {
+                activeSessions = sessions;
+                updateActiveSessionsCount(activeSessions.length);
+                renderActiveSessions();
+            })
+            .catch(() => {
+                document.getElementById('sessionsContainer').innerHTML =
+                    '<p style="text-align:center;color:#f44336">Error loading sessions.</p>';
             });
     }
 
@@ -225,6 +389,155 @@
                     </div>
                 </div>`;
         }).join('');
+    }
+
+    function renderPlanets() {
+        const container = document.getElementById('planetsContainer');
+        if (!allPlanets.length) {
+            container.innerHTML = '<p style="text-align:center;color:#999">No planets yet.</p>';
+            return;
+        }
+
+        container.innerHTML = allPlanets.map(p => {
+            const distance = p.distanceFromPrevious ? ` | Distance: ${p.distanceFromPrevious}` : '';
+            const usersInfo = p.usersCount > 0
+                ? `<span style="color:#ff9800">Assigned users: ${p.usersCount}</span>`
+                : '<span style="color:#4caf50">No assigned users</span>';
+
+            return `
+                <div class="planet-item">
+                    <div>
+                        <div class="planet-name">#${p.orderNumber} ${p.name}</div>
+                        <div class="planet-meta">${usersInfo}${distance}</div>
+                        <div class="planet-description">${p.description ?? 'No description'}</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-small btn-danger" onclick="deletePlanet(${p.id})">Delete</button>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderActiveSessions() {
+        const container = document.getElementById('sessionsContainer');
+        if (!activeSessions.length) {
+            container.innerHTML = '<p style="text-align:center;color:#999">No active sessions.</p>';
+            return;
+        }
+
+        container.innerHTML = activeSessions.map(s => {
+            const status = (s.status || '').toLowerCase();
+            const statusClass = status === 'paused' ? 'status-paused' : 'status-ongoing';
+            const taskLabel = s.taskTitle ? `Task: ${escapeHtml(s.taskTitle)}` : 'No task';
+            const start = new Date(s.startTime);
+            const startLabel = isNaN(start.getTime())
+                ? 'Unknown'
+                : start.toLocaleString('uk-UA', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            return `
+                <div class="session-item" id="session-${s.id}">
+                    <div>
+                        <div class="session-title">Session #${s.id} - ${escapeHtml(s.userName || 'Unknown user')}</div>
+                        <div class="session-meta">${escapeHtml(s.userEmail || '')} &nbsp;|&nbsp; ${taskLabel}</div>
+                        <div class="session-meta">Started: ${startLabel} &nbsp;|&nbsp; Planned: ${formatDuration(s.plannedDuration)}</div>
+                    </div>
+                    <div class="session-actions">
+                        <span class="session-badge ${statusClass}">${escapeHtml(s.status || 'Ongoing')}</span>
+                        <button class="btn btn-small btn-danger" onclick="closeSession(${s.id})">Close</button>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function updateActiveSessionsCount(count) {
+        const el = document.getElementById('activeSessionsCount');
+        if (el) el.textContent = count;
+    }
+
+    async function createPlanet(event) {
+        event.preventDefault();
+
+        const distanceValue = document.getElementById('planetDistance').value;
+        const distance = distanceValue ? `${distanceValue}:00` : null;
+
+        const payload = {
+            name: document.getElementById('planetName').value.trim(),
+            orderNumber: Number(document.getElementById('planetOrder').value),
+            description: document.getElementById('planetDescription').value.trim() || null,
+            distanceFromPrevious: distance,
+            imageUrl: document.getElementById('planetImageUrl').value.trim() || null
+        };
+
+        const r = await fetch('/Admin/CreatePlanet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getToken()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const d = await r.json();
+        alert(d.message ?? 'Request failed.');
+
+        if (r.ok) {
+            document.getElementById('planetForm').reset();
+            loadPlanets();
+            setTimeout(() => window.location.reload(), 250);
+        }
+    }
+
+    async function deletePlanet(id) {
+        if (!confirm('Delete this planet?')) return;
+
+        const r = await fetch(`/Admin/DeletePlanet/${id}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': getToken() }
+        });
+
+        const d = await r.json();
+        alert(d.message ?? 'Request failed.');
+
+        if (r.ok) {
+            loadPlanets();
+            setTimeout(() => window.location.reload(), 250);
+        }
+    }
+
+    async function closeSession(id) {
+        if (!confirm('Close this active session?')) return;
+
+        const r = await fetch(`/Admin/CloseSession/${id}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': getToken() }
+        });
+
+        const d = await r.json().catch(() => ({}));
+        alert(d.message ?? 'Request failed.');
+
+        if (r.ok) {
+            loadActiveSessions();
+        }
+    }
+
+    function formatDuration(ts) {
+        if (!ts) return '-';
+        const parts = ts.split(':');
+        if (parts.length >= 2) {
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (!Number.isNaN(h) && !Number.isNaN(m)) {
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+            }
+        }
+        return ts;
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 
     async function approveUser(id) {
@@ -284,5 +597,13 @@
 
     document.getElementById('usersModal').addEventListener('click', function(e) {
         if (e.target === this) closeModal();
+    });
+
+    document.getElementById('planetsModal').addEventListener('click', function(e) {
+        if (e.target === this) closePlanetsModal();
+    });
+
+    document.getElementById('sessionsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSessionsModal();
     });
 </script>
