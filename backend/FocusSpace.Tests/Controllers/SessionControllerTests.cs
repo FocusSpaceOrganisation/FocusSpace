@@ -122,7 +122,7 @@ namespace FocusSpace.Tests.Controllers
             var result = await controller.Pause(sessionId);
 
             // Assert
-            var okResult = Assert.IsType<OkResult>(result);
+            var okResult = Assert.IsType<OkResult>(result); 
             serviceMock.Verify(s => s.PauseSessionAsync(sessionId), Times.Once);
         }
 
