@@ -28,4 +28,11 @@
         public DateTime? EndTime { get; set; }
         public string? ActualDuration { get; set; }
     }
+
+    public class FocusRecommendationDto
+    {
+        public TimeSpan RecommendedDuration { get; set; }
+        public string BestFocusPeriod { get; set; } = string.Empty;
+        public string Details { get; set; } = string.Empty;
+    }
 }

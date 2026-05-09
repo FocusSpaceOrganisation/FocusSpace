@@ -321,5 +321,84 @@ namespace FocusSpace.Tests.Services
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 service.ResumeSessionAsync(10));
         }
+
+        [Fact]
+        public async Task GetFocusRecommendationAsync_NoCompletedSessions_ReturnsDefaultRecommendation()
+        {
+            // Arrange
+            var sessions = new List<Session>
+            {
+                BuildSession(id: 11, status: SessionStatus.Ongoing),
+                BuildSession(id: 12, status: SessionStatus.Paused)
+            };
+
+            var repoMock = new Mock<ISessionRepository>();
+            repoMock.Setup(r => r.GetByUserIdAsync(10)).ReturnsAsync(sessions);
+
+            var service = CreateService(repoMock);
+
+            // Act
+            var result = await service.GetFocusRecommendationAsync(10);
+
+            // Assert
+            Assert.Equal(TimeSpan.FromMinutes(25), result.RecommendedDuration);
+            Assert.Equal("Any time", result.BestFocusPeriod);
+            Assert.Contains("Not enough completed sessions", result.Details);
+        }
+
+        [Fact]
+        public async Task GetFocusRecommendationAsync_WithCompletedSessions_ReturnsComputedRecommendation()
+        {
+            // Arrange
+            var sessions = new List<Session>
+            {
+                new Session
+                {
+                    Id = 13,
+                    UserId = 10,
+                    StartTime = new DateTime(2026, 5, 4, 9, 15, 0),
+                    EndTime = new DateTime(2026, 5, 4, 10, 15, 0),
+                    PlannedDuration = TimeSpan.FromMinutes(60),
+                    ActualDuration = TimeSpan.FromMinutes(60),
+                    Status = SessionStatus.Completed,
+                    CreatedAt = DateTime.UtcNow.AddHours(-3)
+                },
+                new Session
+                {
+                    Id = 14,
+                    UserId = 10,
+                    StartTime = new DateTime(2026, 5, 5, 9, 45, 0),
+                    EndTime = new DateTime(2026, 5, 5, 10, 30, 0),
+                    PlannedDuration = TimeSpan.FromMinutes(45),
+                    ActualDuration = TimeSpan.FromMinutes(45),
+                    Status = SessionStatus.Completed,
+                    CreatedAt = DateTime.UtcNow.AddHours(-2)
+                },
+                new Session
+                {
+                    Id = 15,
+                    UserId = 10,
+                    StartTime = new DateTime(2026, 5, 5, 14, 0, 0),
+                    EndTime = new DateTime(2026, 5, 5, 15, 0, 0),
+                    PlannedDuration = TimeSpan.FromMinutes(60),
+                    ActualDuration = TimeSpan.FromMinutes(60),
+                    Status = SessionStatus.Completed,
+                    CreatedAt = DateTime.UtcNow.AddHours(-1)
+                }
+            };
+
+            var repoMock = new Mock<ISessionRepository>();
+            repoMock.Setup(r => r.GetByUserIdAsync(10)).ReturnsAsync(sessions);
+
+            var service = CreateService(repoMock);
+
+            // Act
+            var result = await service.GetFocusRecommendationAsync(10);
+
+            // Assert
+            Assert.Equal(TimeSpan.FromMinutes(55), result.RecommendedDuration);
+            Assert.Equal("09:00 - 10:00", result.BestFocusPeriod);
+            Assert.Contains("Based on 3 completed session(s)", result.Details);
+        }
     }
 }

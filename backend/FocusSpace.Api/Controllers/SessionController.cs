@@ -160,6 +160,14 @@ public class SessionController : Controller
             label = activeSession.TaskTitle ?? string.Empty
         });
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetFocusRecommendation()
+    {
+        var userId = await GetCurrentUserIdAsync();
+        var recommendation = await _sessionService.GetFocusRecommendationAsync(userId);
+        return Json(recommendation);
+    }
 }
 
 public sealed class StartSessionRequest
