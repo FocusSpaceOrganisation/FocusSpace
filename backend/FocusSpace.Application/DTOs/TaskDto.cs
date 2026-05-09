@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FocusSpace.Domain.Enums;
 
 namespace FocusSpace.Application.DTOs
 {
@@ -8,6 +9,7 @@ namespace FocusSpace.Application.DTOs
         public int UserId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
@@ -22,6 +24,8 @@ namespace FocusSpace.Application.DTOs
 
         [StringLength(2000, ErrorMessage = "Description cannot exceed 2000 characters.")]
         public string? Description { get; set; }
+
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
     }
 
     public class UpdateTaskDto
@@ -34,5 +38,7 @@ namespace FocusSpace.Application.DTOs
 
         [StringLength(2000, ErrorMessage = "Description cannot exceed 2000 characters.")]
         public string? Description { get; set; }
+
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
     }
 }

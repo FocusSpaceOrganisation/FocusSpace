@@ -49,6 +49,11 @@ namespace FocusSpace.Infrastructure.Data
                 entity.HasKey(t => t.Id);
                 entity.Property(t => t.Title).IsRequired().HasMaxLength(300);
 
+                // Store priority as a human-readable string ("Low", "Medium", "High").
+                entity.Property(t => t.Priority)
+                      .HasConversion<string>()
+                      .HasDefaultValue(TaskPriority.Medium);
+
                 entity.HasOne(t => t.User)
                       .WithMany(u => u.Tasks)
                       .HasForeignKey(t => t.UserId)
@@ -77,17 +82,18 @@ namespace FocusSpace.Infrastructure.Data
             // ── Seed Roles ────────────────────────────────────────────
             modelBuilder.Entity<ApplicationRole>().HasData(
                 new ApplicationRole { Id = 1, Name = "Admin", NormalizedName = "ADMIN", ConcurrencyStamp = "static-admin-stamp" },
-                new ApplicationRole { Id = 2, Name = "User", NormalizedName = "USER", ConcurrencyStamp = "static-user-stamp" }
+                new ApplicationRole { Id = 2, Name = "User",  NormalizedName = "USER",  ConcurrencyStamp = "static-user-stamp" }
             );
+
             // ── Seed Planets ──────────────────────────────────────────
             modelBuilder.Entity<Planet>().HasData(
                 new Planet { Id = 1, Name = "Mercury", OrderNumber = 1, Description = "The closest planet to the Sun" },
-                new Planet { Id = 2, Name = "Venus", OrderNumber = 2, Description = "The hottest planet" },
-                new Planet { Id = 3, Name = "Earth", OrderNumber = 3, Description = "Our home planet" },
-                new Planet { Id = 4, Name = "Mars", OrderNumber = 4, Description = "The Red Planet" },
+                new Planet { Id = 2, Name = "Venus",   OrderNumber = 2, Description = "The hottest planet" },
+                new Planet { Id = 3, Name = "Earth",   OrderNumber = 3, Description = "Our home planet" },
+                new Planet { Id = 4, Name = "Mars",    OrderNumber = 4, Description = "The Red Planet" },
                 new Planet { Id = 5, Name = "Jupiter", OrderNumber = 5, Description = "The largest planet" },
-                new Planet { Id = 6, Name = "Saturn", OrderNumber = 6, Description = "The ringed planet" },
-                new Planet { Id = 7, Name = "Uranus", OrderNumber = 7, Description = "The ice giant" },
+                new Planet { Id = 6, Name = "Saturn",  OrderNumber = 6, Description = "The ringed planet" },
+                new Planet { Id = 7, Name = "Uranus",  OrderNumber = 7, Description = "The ice giant" },
                 new Planet { Id = 8, Name = "Neptune", OrderNumber = 8, Description = "The farthest planet" }
             );
         }

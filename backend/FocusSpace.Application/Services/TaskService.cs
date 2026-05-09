@@ -74,11 +74,12 @@ namespace FocusSpace.Application.Services
 
             var entity = new DomainTask
             {
-                UserId = dto.UserId,
-                Title = dto.Title.Trim(),
+                UserId      = dto.UserId,
+                Title       = dto.Title.Trim(),
                 Description = dto.Description?.Trim(),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                Priority    = dto.Priority,
+                CreatedAt   = DateTime.UtcNow,
+                UpdatedAt   = DateTime.UtcNow
             };
 
             var created = await _taskRepository.CreateAsync(entity);
@@ -109,9 +110,10 @@ namespace FocusSpace.Application.Services
                 return null;
             }
 
-            existing.Title = dto.Title.Trim();
+            existing.Title       = dto.Title.Trim();
             existing.Description = dto.Description?.Trim();
-            existing.UpdatedAt = DateTime.UtcNow;
+            existing.Priority    = dto.Priority;
+            existing.UpdatedAt   = DateTime.UtcNow;
 
             var updated = await _taskRepository.UpdateAsync(existing);
 
@@ -149,12 +151,13 @@ namespace FocusSpace.Application.Services
 
         private static TaskDto MapToDto(DomainTask task) => new()
         {
-            Id = task.Id,
-            UserId = task.UserId,
-            Title = task.Title,
+            Id          = task.Id,
+            UserId      = task.UserId,
+            Title       = task.Title,
             Description = task.Description,
-            CreatedAt = task.CreatedAt,
-            UpdatedAt = task.UpdatedAt
+            Priority    = task.Priority,
+            CreatedAt   = task.CreatedAt,
+            UpdatedAt   = task.UpdatedAt
         };
     }
 }
